@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
+  <title id="title">Earlier dinner sleep routine</title>
+  <desc id="desc">A calm bedside scene with moonlight, tea, and a sleep score card.</desc>
+  <rect width="960" height="600" fill="#1e293b"/>
+  <circle cx="760" cy="120" r="82" fill="#fde68a"/>
+  <circle cx="794" cy="98" r="82" fill="#1e293b"/>
+  <rect x="90" y="335" width="780" height="105" rx="24" fill="#334155"/>
+  <rect x="145" y="255" width="290" height="110" rx="28" fill="#e0f2fe"/>
+  <rect x="176" y="286" width="210" height="48" rx="24" fill="#bae6fd"/>
+  <rect x="560" y="205" width="245" height="205" rx="32" fill="#f8fafc"/>
+  <text x="592" y="270" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="800" fill="#0f172a">Sleep</text>
+  <text x="592" y="334" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="900" fill="#0f766e">84</text>
+  <rect x="592" y="360" width="154" height="18" rx="9" fill="#14b8a6"/>
+  <path d="M485 346c0-45 34-80 78-80v160c-44 0-78-35-78-80Z" fill="#fef3c7"/>
+  <rect x="455" y="407" width="140" height="52" rx="18" fill="#0f766e"/>
+  <path d="M460 430h-42c0-28 14-42 42-42" fill="none" stroke="#e0f2fe" stroke-width="18" stroke-linecap="round"/>
+</svg>

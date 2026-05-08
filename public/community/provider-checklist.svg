@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" role="img" aria-labelledby="title desc">
+  <title id="title">Provider checklist</title>
+  <desc id="desc">A provider checklist with health signals, warning markers, and a stethoscope.</desc>
+  <rect width="960" height="600" fill="#f1f5f9"/>
+  <rect x="135" y="70" width="520" height="460" rx="34" fill="#ffffff"/>
+  <rect x="195" y="118" width="220" height="24" rx="12" fill="#0f172a"/>
+  <rect x="195" y="177" width="365" height="18" rx="9" fill="#cbd5e1"/>
+  <rect x="195" y="241" width="330" height="18" rx="9" fill="#cbd5e1"/>
+  <rect x="195" y="305" width="385" height="18" rx="9" fill="#cbd5e1"/>
+  <rect x="195" y="369" width="300" height="18" rx="9" fill="#cbd5e1"/>
+  <g fill="#14b8a6">
+    <circle cx="165" cy="186" r="13"/>
+    <circle cx="165" cy="250" r="13"/>
+    <circle cx="165" cy="314" r="13"/>
+  </g>
+  <circle cx="165" cy="378" r="13" fill="#f59e0b"/>
+  <path d="M735 170c-70 54-95 116-70 182 24 63 95 78 142 42 55-42 46-122-14-145" fill="none" stroke="#0f766e" stroke-width="30" stroke-linecap="round"/>
+  <circle cx="800" cy="245" r="36" fill="#0f172a"/>
+  <path d="M655 352c-54 18-86 56-96 115" fill="none" stroke="#0f172a" stroke-width="22" stroke-linecap="round"/>
+  <rect x="610" y="430" width="210" height="58" rx="29" fill="#fee2e2"/>
+  <text x="650" y="468" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" fill="#b91c1c">Review</text>
+</svg>
