@@ -1,12 +1,12 @@
 "use client";
 
-import { Building2, Compass, Heart, MessageSquare } from "lucide-react";
+import { Building2, Heart, MessageSquare, Utensils } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
   { label: "Passport", href: "/passport", icon: Heart },
-  { label: "Journey", href: "/journey", icon: Compass },
+  { label: "Diet", href: "/diet", icon: Utensils },
   { label: "Providers", href: "/providers", icon: Building2 },
   { label: "Q&A", href: "/ask", icon: MessageSquare },
 ];

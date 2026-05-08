@@ -200,8 +200,8 @@ const defaultDynamicHealth: DynamicHealth = {
 };
 
 const defaultEnvironment: Environment = {
-  location: "Pathum Wan, Bangkok",
-  locationName: "Pathum Wan, Bangkok",
+  location: "Khu Khot, Pathum Thani",
+  locationName: "Khu Khot, Pathum Thani",
   pm25: 18,
   uv: 7,
   temperature: 32,
@@ -302,8 +302,8 @@ function createForecast(baseTemp: number): Environment["forecast"] {
 function createFallbackEnvironment(): Environment {
   return {
     ...defaultEnvironment,
-    location: "Bangkok",
-    locationName: "Bangkok",
+    location: "Khu Khot, Pathum Thani",
+    locationName: "Khu Khot, Pathum Thani",
     pm25: 45,
     uv: 7,
     temperature: 33,
@@ -604,7 +604,7 @@ export default function PassportPage() {
       navigator.geolocation.getCurrentPosition(
         (pos) => { void fetchEnv(pos); },
         (err) => { fallback(err.message || "Location permission denied."); },
-        { enableHighAccuracy: false, maximumAge: 300000, timeout: 7000 },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       );
     }, 0);
 
@@ -617,6 +617,7 @@ export default function PassportPage() {
 
   const { dynamicHealth, environment, interaction, profile } = passportData;
   const visibleProfile = isEditingProfile ? profileDraft : profile;
+  const environmentLocation = environment.locationName ?? environment.location;
   const calorieBalance = dynamicHealth.calories.intake - dynamicHealth.calories.output;
   const paiProgress = Math.min(100, (dynamicHealth.pai.score / dynamicHealth.pai.weeklyTarget) * 100);
 
@@ -938,7 +939,7 @@ export default function PassportPage() {
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <MapPin className="h-3.5 w-3.5 text-teal-600" />
-                {environment.location}
+                {environmentLocation}
               </div>
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
                 {isLoadingEnvironment ? "Loading…" : environment.source}
@@ -1098,10 +1099,10 @@ export default function PassportPage() {
                 Ready to sync with wearable APIs, environment, and chat history.
               </span>
               <Link
-                href="/journey"
+                href="/diet"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-800"
               >
-                Generate Journey
+                Generate Diet Plan
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
@@ -1332,7 +1333,7 @@ export default function PassportPage() {
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
               <MapPin className="h-3.5 w-3.5 text-teal-600" />
-              {environment.location}
+              {environmentLocation}
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">
                 {isLoadingEnvironment ? "Loading live data…" : environment.source}
               </span>
