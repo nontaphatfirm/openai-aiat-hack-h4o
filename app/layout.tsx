@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import BottomNav from "./components/BottomNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WellnessApp | AI Nutrition Advisor",
+  title: "OmniWell-TH | AI Nutrition Advisor",
   description: "Your personalized AI food-as-medicine advisor.",
 };
 
@@ -21,11 +22,15 @@ export default function RootLayout({
           <header className="sticky top-0 z-50 shrink-0 border-b border-slate-200 bg-white/90 backdrop-blur-md">
             <div className="flex h-12 items-center px-4">
               <Link href="/" className="flex min-w-0 items-center gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-black text-white">
-                  W
-                </span>
+                <Image
+                  src="/logo.png"
+                  alt="OmniWell-TH logo"
+                  width={28}
+                  height={28}
+                  className="shrink-0 rounded-full object-cover"
+                />
                 <span className="truncate text-sm font-extrabold tracking-tight text-slate-800">
-                  WellnessApp
+                  OmniWell-TH
                 </span>
               </Link>
             </div>

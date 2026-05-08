@@ -91,7 +91,7 @@ export default function AskPage() {
     <main className="flex h-full min-h-0 flex-col bg-slate-50">
       <section className="shrink-0 border-b border-slate-200 bg-white px-4 py-4">
         <p className="text-xs font-black uppercase tracking-wide text-teal-700">AI Advisor</p>
-        <h1 className="mt-1 text-xl font-extrabold text-slate-950">Ask WellnessApp</h1>
+        <h1 className="mt-1 text-xl font-extrabold text-slate-950">Ask OmniWell-TH</h1>
         <p className="mt-1 text-xs leading-5 text-slate-500">
           Evidence-informed guidance for your health passport. Always verify medical decisions
           with a qualified professional.
