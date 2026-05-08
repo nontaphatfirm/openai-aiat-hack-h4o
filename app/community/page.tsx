@@ -4,57 +4,11 @@ import {
   MessageCircle,
   Search,
   ShieldCheck,
-  Sparkles,
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
-
-const topicFilters = ["All", "Nutrition", "Sleep", "Stress", "Gut health", "Recovery"];
-
-const featuredThreads = [
-  {
-    author: "Nara",
-    role: "Nutrition coach",
-    initials: "NA",
-    title: "How do you keep protein high when breakfast has to be fast?",
-    body:
-      "I am collecting practical ideas for people who have early work shifts. Bonus if it avoids peanuts and shellfish.",
-    tag: "Nutrition",
-    replies: 18,
-    saves: 42,
-    time: "12 min ago",
-  },
-  {
-    author: "Maya",
-    role: "Member",
-    initials: "MY",
-    title: "Small win: my sleep score improved after changing dinner time",
-    body:
-      "Moved dinner 90 minutes earlier for 5 days. Less reflux, fewer late snacks, and better morning energy.",
-    tag: "Sleep",
-    replies: 9,
-    saves: 27,
-    time: "38 min ago",
-  },
-  {
-    author: "Dr. Arun",
-    role: "Provider",
-    initials: "DA",
-    title: "What symptom signals should trigger a clinic visit?",
-    body:
-      "Sharing a simple checklist for when fatigue, pain, mood, or digestive symptoms need professional review.",
-    tag: "Provider Q&A",
-    replies: 31,
-    saves: 66,
-    time: "1 hr ago",
-  },
-];
-
-const liveRooms = [
-  { title: "Gut-friendly meals", members: 128, accent: "bg-emerald-50 text-emerald-700" },
-  { title: "Stress reset circle", members: 84, accent: "bg-sky-50 text-sky-700" },
-  { title: "Recovery check-in", members: 53, accent: "bg-amber-50 text-amber-700" },
-];
+import Image from "next/image";
+import { featuredThreads, liveRooms, topicFilters } from "./communityData";
 
 export default function CommunityPage() {
   return (
@@ -108,31 +62,6 @@ export default function CommunityPage() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-2xl border border-teal-100 bg-teal-50 p-5">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-teal-700">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div>
-            <h2 className="text-lg font-extrabold text-teal-950">Start a useful discussion</h2>
-            <p className="mt-1 text-sm leading-6 text-teal-800/80">
-              Ask for practical experience, share what worked, or invite provider input.
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button className="rounded-full bg-teal-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-teal-700">
-            New Post
-          </button>
-          <Link
-            href="/ask"
-            className="inline-flex items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-extrabold text-teal-700 transition hover:bg-teal-100"
-          >
-            Ask AI
-          </Link>
-        </div>
-      </section>
-
       <section className="mt-5">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-lg font-extrabold text-slate-950">Trending threads</h2>
@@ -140,7 +69,11 @@ export default function CommunityPage() {
         </div>
         <div className="space-y-3">
           {featuredThreads.map((thread) => (
-            <article key={thread.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <Link
+              key={thread.slug}
+              href={`/community/${thread.slug}`}
+              className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-teal-200 hover:shadow-md"
+            >
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-xs font-black text-white">
                   {thread.initials}
@@ -158,6 +91,15 @@ export default function CommunityPage() {
               </div>
               <h3 className="mt-4 text-lg font-extrabold leading-6 text-slate-950">{thread.title}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-500">{thread.body}</p>
+              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-slate-100">
+                <Image
+                  src={thread.image}
+                  alt={thread.imageAlt}
+                  width={960}
+                  height={600}
+                  className="aspect-[16/10] w-full object-cover"
+                />
+              </div>
               <div className="mt-4 flex items-center gap-2 text-xs font-black text-slate-500">
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5">
                   <MessageCircle className="h-3.5 w-3.5" />
@@ -167,8 +109,9 @@ export default function CommunityPage() {
                   <Bookmark className="h-3.5 w-3.5" />
                   {thread.saves}
                 </span>
+                <span className="ml-auto text-teal-700">View post</span>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </section>
