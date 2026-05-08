@@ -78,7 +78,7 @@ export default function FeedbackPage() {
                   How was your day?
                 </h1>
                 <p className="text-slate-500 text-sm sm:text-base">
-                  Did the daily protocol and menus help you feel better? Let us know so we can adjust tomorrow's plan.
+                  Did the daily protocol and menus help you feel better? Let us know so we can adjust tomorrow&apos;s plan.
                 </p>
               </div>
 
@@ -112,7 +112,7 @@ export default function FeedbackPage() {
               {/* Text Feedback */}
               <div className="mb-8">
                 <label htmlFor="comments" className="block text-sm font-bold text-slate-700 mb-2">
-                  Any details you'd like to share? <span className="text-slate-400 font-normal">(Optional)</span>
+                  Any details you&apos;d like to share? <span className="text-slate-400 font-normal">(Optional)</span>
                 </label>
                 <textarea
                   id="comments"
