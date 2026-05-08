@@ -1,10 +1,12 @@
 "use client";
 
+import { SelfHealingFoodImage } from "@/app/components/SelfHealingFoodImage";
 import {
   AlertTriangle,
   Bike,
   BookOpen,
   ChefHat,
+  ExternalLink,
   Leaf,
   Loader2,
   RotateCcw,
@@ -12,7 +14,6 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
-import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -79,10 +80,20 @@ type MenuRecommendation = {
   reason: string;
   keyIngredientForResearch: string;
   research: ResearchPaper | null;
+  imageUrl: string | null;
+};
+
+type IngredientRecommendation = {
+  name: string;
+  reason: string;
+  researchKeyword: string;
+  research: ResearchPaper | null;
+  imageUrl: string | null;
 };
 
 type RecommendationResponse = {
   menus: MenuRecommendation[];
+  ingredientPool?: IngredientRecommendation[];
   disclaimer: string;
   source: "openai" | "fallback";
   warning?: string;
@@ -96,18 +107,6 @@ const PRIMARY_STORAGE_KEY = "mock_passport_data";
 const LEGACY_STORAGE_KEY = "wellness_passport_data";
 const ENGLISH_DISCLAIMER =
   "This system provides preliminary wellness suggestions only and does not replace medical diagnosis or advice from a physician, dietitian, or pharmacist.";
-const FOOD_IMAGE_URLS = [
-  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1478145046317-39f10e56b5e9?auto=format&fit=crop&w=900&q=80",
-  "https://images.unsplash.com/photo-1543353071-873f17a7a088?auto=format&fit=crop&w=900&q=80",
-];
 
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
   return (
@@ -145,17 +144,9 @@ function formatCalories(value: number) {
   return `${Math.round(value).toLocaleString("en-US")} kcal`;
 }
 
-function hashText(value: string) {
-  return value.split("").reduce((total, character) => total + character.charCodeAt(0), 0);
-}
-
-function getFoodImageUrl(value: string, index = 0) {
-  return FOOD_IMAGE_URLS[(hashText(value) + index) % FOOD_IMAGE_URLS.length];
-}
-
 function getIngredientPool(menus: MenuRecommendation[]) {
   const seen = new Set<string>();
-  const ingredients: string[] = [];
+  const ingredients: IngredientRecommendation[] = [];
 
   for (const menu of menus) {
     for (const ingredient of menu.ingredients) {
@@ -163,11 +154,41 @@ function getIngredientPool(menus: MenuRecommendation[]) {
       if (!normalized || seen.has(normalized)) continue;
 
       seen.add(normalized);
-      ingredients.push(ingredient);
+      ingredients.push({
+        name: ingredient,
+        reason: `Included in ${menu.name} to support the personalized nutrition pattern.`,
+        researchKeyword: menu.keyIngredientForResearch || ingredient,
+        research: menu.research,
+        imageUrl: null,
+      });
     }
   }
 
   return ingredients.slice(0, 12);
+}
+
+function MenuImage({ menu }: { menu: MenuRecommendation }) {
+  return (
+    <SelfHealingFoodImage
+      key={`${menu.name}-${menu.imageUrl ?? "missing"}`}
+      src={menu.imageUrl}
+      prompt={menu.name}
+      alt={menu.name}
+      className="h-full w-full rounded-lg object-cover"
+    />
+  );
+}
+
+function IngredientImage({ ingredient }: { ingredient: IngredientRecommendation }) {
+  return (
+    <SelfHealingFoodImage
+      key={`${ingredient.name}-${ingredient.imageUrl ?? "missing"}`}
+      src={ingredient.imageUrl}
+      prompt={ingredient.name}
+      alt={ingredient.name}
+      className="h-full w-full rounded-lg object-cover"
+    />
+  );
 }
 
 function SkeletonCard() {
@@ -195,7 +216,7 @@ function SkeletonCard() {
   );
 }
 
-function IngredientPool({ ingredients }: { ingredients: string[] }) {
+function IngredientPool({ ingredients }: { ingredients: IngredientRecommendation[] }) {
   return (
     <section className="mt-6">
       <div className="mb-4">
@@ -203,20 +224,31 @@ function IngredientPool({ ingredients }: { ingredients: string[] }) {
         <h2 className="text-2xl font-extrabold text-slate-950">Ingredient Pool</h2>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        {ingredients.map((ingredient, index) => (
-          <div key={ingredient} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        {ingredients.map((ingredient) => (
+          <div
+            key={`${ingredient.name}-${ingredient.researchKeyword}`}
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+          >
             <div className="relative h-24 w-full">
-              <Image
-                src={getFoodImageUrl(ingredient, index)}
-                alt={ingredient}
-                fill
-                sizes="(max-width: 430px) 50vw, 190px"
-                className="object-cover"
-              />
+              <IngredientImage ingredient={ingredient} />
             </div>
-            <div className="flex min-h-16 items-start gap-2 p-3">
-              <Leaf className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />
-              <p className="text-sm font-extrabold leading-5 text-slate-800">{ingredient}</p>
+            <div className="min-h-36 p-3">
+              <div className="flex items-start gap-2">
+                <Leaf className="mt-0.5 h-4 w-4 shrink-0 text-teal-700" />
+                <p className="text-sm font-extrabold leading-5 text-slate-800">{ingredient.name}</p>
+              </div>
+              <p className="mt-2 text-xs font-medium leading-5 text-slate-500">{ingredient.reason}</p>
+              {ingredient.research ? (
+                <a
+                  href={ingredient.research.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-extrabold text-emerald-800 transition hover:bg-emerald-100"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Scientific Evidence
+                </a>
+              ) : null}
             </div>
           </div>
         ))}
@@ -231,7 +263,7 @@ function MenuCard({ menu }: { menu: MenuRecommendation }) {
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="relative h-44 w-full">
-        <Image src={getFoodImageUrl(menu.name)} alt={menu.name} fill sizes="430px" className="object-cover" />
+        <MenuImage menu={menu} />
       </div>
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
@@ -359,7 +391,8 @@ export default function DietPage() {
 
   const profile = passportData?.profile;
   const environment = passportData?.environment;
-  const ingredientPool = recommendations ? getIngredientPool(recommendations.menus) : [];
+  const ingredientPool =
+    recommendations?.ingredientPool?.length ? recommendations.ingredientPool : recommendations ? getIngredientPool(recommendations.menus) : [];
 
   return (
     <main className="min-h-full bg-slate-50 px-4 pb-8 pt-5">
