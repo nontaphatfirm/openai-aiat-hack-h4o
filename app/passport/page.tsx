@@ -5,7 +5,9 @@ import {
   AirVent,
   Camera,
   Check,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   CloudSun,
   Dumbbell,
   Edit3,
@@ -24,9 +26,10 @@ import {
   Utensils,
   Watch,
   Wind,
+  X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 type Profile = {
   name: string;
@@ -121,9 +124,7 @@ type SpeechRecognitionResultListLike = {
   length: number;
   [index: number]: {
     length: number;
-    [index: number]: {
-      transcript: string;
-    };
+    [index: number]: { transcript: string };
   };
 };
 
@@ -271,9 +272,15 @@ function getPmLabel(pm25: number) {
 }
 
 function getPmTone(pm25: number) {
-  if (pm25 <= 15) return "text-emerald-700";
-  if (pm25 <= 50) return "text-amber-700";
-  return "text-rose-700";
+  if (pm25 <= 15) return "text-emerald-600";
+  if (pm25 <= 50) return "text-amber-600";
+  return "text-rose-600";
+}
+
+function getPmBg(pm25: number) {
+  if (pm25 <= 15) return "bg-emerald-50 border-emerald-200";
+  if (pm25 <= 50) return "bg-amber-50 border-amber-200";
+  return "bg-rose-50 border-rose-200";
 }
 
 function getUvLabel(uv: number) {
@@ -312,24 +319,12 @@ function createInitialPassportData(): PassportData {
     profile: { ...defaultProfile },
     dynamicHealth: {
       ...defaultDynamicHealth,
-      sleep: {
-        ...defaultDynamicHealth.sleep,
-        history: [...defaultDynamicHealth.sleep.history],
-      },
-      stress: {
-        ...defaultDynamicHealth.stress,
-        trend: [...defaultDynamicHealth.stress.trend],
-      },
-      pai: {
-        ...defaultDynamicHealth.pai,
-        history: [...defaultDynamicHealth.pai.history],
-      },
+      sleep: { ...defaultDynamicHealth.sleep, history: [...defaultDynamicHealth.sleep.history] },
+      stress: { ...defaultDynamicHealth.stress, trend: [...defaultDynamicHealth.stress.trend] },
+      pai: { ...defaultDynamicHealth.pai, history: [...defaultDynamicHealth.pai.history] },
       calories: { ...defaultDynamicHealth.calories },
     },
-    environment: {
-      ...defaultEnvironment,
-      forecast: [...defaultEnvironment.forecast],
-    },
+    environment: { ...defaultEnvironment, forecast: [...defaultEnvironment.forecast] },
     interaction: { ...defaultInteraction },
     chatMessages: [...defaultChatMessages],
     mealPhotoStatus: "Ready for meal photo analysis",
@@ -367,45 +362,29 @@ function mergeStoredPassportData(storedData: Partial<PassportData>): PassportDat
         ...storedData.dynamicHealth?.pai,
         history: storedData.dynamicHealth?.pai?.history ?? initialData.dynamicHealth.pai.history,
       },
-      calories: {
-        ...initialData.dynamicHealth.calories,
-        ...storedData.dynamicHealth?.calories,
-      },
+      calories: { ...initialData.dynamicHealth.calories, ...storedData.dynamicHealth?.calories },
     },
     environment: {
       ...initialData.environment,
       ...storedData.environment,
       forecast: storedData.environment?.forecast ?? initialData.environment.forecast,
     },
-    interaction: {
-      ...initialData.interaction,
-      ...storedData.interaction,
-    },
+    interaction: { ...initialData.interaction, ...storedData.interaction },
     chatMessages: storedData.chatMessages?.length ? storedData.chatMessages : initialData.chatMessages,
     mealPhotoStatus: storedData.mealPhotoStatus ?? initialData.mealPhotoStatus,
   };
 }
 
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "error" in value &&
-    typeof (value as ApiErrorResponse).error === "string"
-  );
+  return typeof value === "object" && value !== null && "error" in value && typeof (value as ApiErrorResponse).error === "string";
 }
 
 async function readJsonResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as unknown;
-
   if (!response.ok) {
-    if (isApiErrorResponse(payload)) {
-      throw new Error(payload.error);
-    }
-
+    if (isApiErrorResponse(payload)) throw new Error(payload.error);
     throw new Error("Request failed.");
   }
-
   return payload as T;
 }
 
@@ -413,11 +392,7 @@ function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      if (typeof reader.result === "string") {
-        resolve(reader.result);
-        return;
-      }
-
+      if (typeof reader.result === "string") { resolve(reader.result); return; }
       reject(new Error("Unable to read image file."));
     };
     reader.onerror = () => reject(new Error("Unable to read image file."));
@@ -427,15 +402,14 @@ function readFileAsDataUrl(file: File) {
 
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
   if (typeof window === "undefined") return null;
-
   const speechWindow = window as Window & {
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
   };
-
   return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
 }
 
+// Taller bar chart with value labels
 function MiniBars({
   data,
   max,
@@ -446,19 +420,21 @@ function MiniBars({
   colorClass: string;
 }) {
   return (
-    <div className="flex h-24 items-end gap-2">
+    <div className="flex h-44 items-end gap-1.5">
       {data.map((point) => {
         const value = point.value ?? point.quality ?? point.duration ?? 0;
+        const pct = Math.max(6, (value / max) * 100);
         return (
-          <div key={point.day} className="flex flex-1 flex-col items-center gap-2">
-            <div className="flex h-16 w-full items-end rounded-full bg-slate-100">
+          <div key={point.day} className="flex flex-1 flex-col items-center gap-1">
+            <span className="text-[10px] font-bold text-slate-600">{value}</span>
+            <div className="relative flex h-32 w-full items-end overflow-hidden rounded-xl bg-slate-100">
               <div
-                className={`w-full rounded-full ${colorClass}`}
-                style={{ height: `${Math.max(12, (value / max) * 100)}%` }}
+                className={`w-full rounded-xl transition-all duration-500 ${colorClass}`}
+                style={{ height: `${pct}%` }}
                 title={`${point.day}: ${value}`}
               />
             </div>
-            <span className="text-[11px] font-medium text-slate-400">{point.day}</span>
+            <span className="text-[10px] font-medium text-slate-400">{point.day}</span>
           </div>
         );
       })}
@@ -466,36 +442,90 @@ function MiniBars({
   );
 }
 
-function MetricCard({
+function HealthClickCard({
   title,
   value,
-  detail,
+  unit,
+  subtitle,
   icon,
-  tone,
+  accentBg,
+  accentText,
+  onClick,
 }: {
   title: string;
   value: string;
-  detail: string;
+  unit?: string;
+  subtitle?: string;
   icon: ReactNode;
-  tone: string;
+  accentBg: string;
+  accentText: string;
+  onClick: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-slate-500">{title}</p>
-          <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{value}</p>
-        </div>
-        <div className={`rounded-2xl p-3 ${tone}`}>{icon}</div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-start w-full rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-left transition-all hover:shadow-md hover:border-slate-200 active:scale-[0.97]"
+    >
+      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${accentBg} mb-3`}>
+        {icon}
       </div>
-      <p className="text-sm leading-6 text-slate-500">{detail}</p>
-    </div>
+      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{title}</p>
+      <p className={`mt-1 text-xl font-extrabold leading-tight ${accentText}`}>
+        {value}
+        {unit && <span className="text-sm font-semibold text-slate-400 ml-1">{unit}</span>}
+      </p>
+      {subtitle && (
+        <p className="mt-1 text-[11px] text-slate-400 leading-tight line-clamp-1">{subtitle}</p>
+      )}
+      <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-teal-600">
+        <span>Details</span>
+        <ChevronRight className="h-3 w-3" />
+      </div>
+    </button>
+  );
+}
+
+// Bottom-sheet modal constrained to phone width
+function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="fixed inset-x-0 bottom-0 z-50 flex justify-center">
+        <div className="w-full max-w-[430px]">
+          <div className="flex max-h-[82dvh] flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl">
+            {/* Pull indicator */}
+            <div className="flex shrink-0 justify-center pt-3 pb-1">
+              <div className="h-1 w-10 rounded-full bg-slate-200" />
+            </div>
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between px-5 pb-3 pt-1">
+              <h3 className="text-lg font-extrabold text-slate-950">{title}</h3>
+              <button
+                onClick={onClose}
+                className="rounded-full p-2 hover:bg-slate-100 transition"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            {/* Scrollable body */}
+            <div className="overflow-y-auto px-5 pb-8 flex-1">{children}</div>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
 export default function PassportPage() {
   const mealCameraInputRef = useRef<HTMLInputElement>(null);
   const mealUploadInputRef = useRef<HTMLInputElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const [passportData, setPassportData] = useState<PassportData>(() => createInitialPassportData());
   const [profileDraft, setProfileDraft] = useState<Profile>(() => ({ ...defaultProfile }));
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -510,28 +540,29 @@ export default function PassportPage() {
   const [voiceTranscript, setVoiceTranscript] = useState("");
   const [chatInput, setChatInput] = useState("");
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [activeModal, setActiveModal] = useState<"sleep" | "stress" | "pai" | "calories" | "environment" | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatVoiceActive, setIsChatVoiceActive] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const hydrateTimer = window.setTimeout(() => {
-      const storedValue = window.localStorage.getItem(STORAGE_KEY);
-      if (storedValue) {
+    const t = window.setTimeout(() => {
+      const stored = window.localStorage.getItem(STORAGE_KEY);
+      if (stored) {
         try {
-          const restoredData = mergeStoredPassportData(JSON.parse(storedValue) as Partial<PassportData>);
-          setPassportData(restoredData);
-          setProfileDraft(restoredData.profile);
+          const restored = mergeStoredPassportData(JSON.parse(stored) as Partial<PassportData>);
+          setPassportData(restored);
+          setProfileDraft(restored.profile);
         } catch {
-          const freshData = createInitialPassportData();
-          setPassportData(freshData);
-          setProfileDraft(freshData.profile);
+          const fresh = createInitialPassportData();
+          setPassportData(fresh);
+          setProfileDraft(fresh.profile);
         }
       }
-
       setHasHydrated(true);
     }, 0);
-
-    return () => window.clearTimeout(hydrateTimer);
+    return () => window.clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -541,75 +572,51 @@ export default function PassportPage() {
 
   useEffect(() => {
     if (!hasHydrated || typeof window === "undefined") return;
+    let cancelled = false;
 
-    let isCancelled = false;
-
-    const applyFallbackEnvironment = (message: string) => {
-      if (isCancelled) return;
-
-      setEnvironmentError(message);
-      setPassportData((current) => ({
-        ...current,
-        environment: createFallbackEnvironment(),
-      }));
+    const fallback = (msg: string) => {
+      if (cancelled) return;
+      setEnvironmentError(msg);
+      setPassportData((c) => ({ ...c, environment: createFallbackEnvironment() }));
       setIsLoadingEnvironment(false);
     };
 
-    const fetchEnvironment = async (position: GeolocationPosition) => {
+    const fetchEnv = async (pos: GeolocationPosition) => {
       try {
-        const params = new URLSearchParams({
-          lat: String(position.coords.latitude),
-          lon: String(position.coords.longitude),
-        });
-        const response = await fetch(`/api/environment?${params.toString()}`);
-        const environmentData = await readJsonResponse<Environment>(response);
-
-        if (isCancelled) return;
-
-        setPassportData((current) => ({
-          ...current,
-          environment: {
-            ...environmentData,
-            forecast: environmentData.forecast.length ? environmentData.forecast : createForecast(environmentData.temperature),
-          },
+        const params = new URLSearchParams({ lat: String(pos.coords.latitude), lon: String(pos.coords.longitude) });
+        const res = await fetch(`/api/environment?${params.toString()}`);
+        const data = await readJsonResponse<Environment>(res);
+        if (cancelled) return;
+        setPassportData((c) => ({
+          ...c,
+          environment: { ...data, forecast: data.forecast.length ? data.forecast : createForecast(data.temperature) },
         }));
         setEnvironmentError(null);
         setIsLoadingEnvironment(false);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to load environment data.";
-        applyFallbackEnvironment(message);
+      } catch (err) {
+        fallback(err instanceof Error ? err.message : "Unable to load environment data.");
       }
     };
 
-    const environmentTimer = window.setTimeout(() => {
+    const t = window.setTimeout(() => {
       setIsLoadingEnvironment(true);
-
-      if (!("geolocation" in navigator)) {
-        applyFallbackEnvironment("Location is not supported by this browser.");
-        return;
-      }
-
+      if (!("geolocation" in navigator)) { fallback("Location not supported."); return; }
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          void fetchEnvironment(position);
-        },
-        (error) => {
-          applyFallbackEnvironment(error.message || "Location permission was denied.");
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+        (pos) => { void fetchEnv(pos); },
+        (err) => { fallback(err.message || "Location permission denied."); },
+        { enableHighAccuracy: false, maximumAge: 300000, timeout: 7000 },
       );
     }, 0);
 
-    return () => {
-      isCancelled = true;
-      window.clearTimeout(environmentTimer);
-    };
+    return () => { cancelled = true; window.clearTimeout(t); };
   }, [hasHydrated]);
+
+  useEffect(() => {
+    if (isChatOpen) chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [passportData.chatMessages, isChatOpen, isBotTyping]);
 
   const { dynamicHealth, environment, interaction, profile } = passportData;
   const visibleProfile = isEditingProfile ? profileDraft : profile;
-  const currentLocationName = environment.locationName ?? environment.location;
-
   const calorieBalance = dynamicHealth.calories.intake - dynamicHealth.calories.output;
   const paiProgress = Math.min(100, (dynamicHealth.pai.score / dynamicHealth.pai.weeklyTarget) * 100);
 
@@ -618,95 +625,49 @@ export default function PassportPage() {
     [profileDraft.heightCm, profileDraft.weightKg],
   );
 
-  const updatePassportData = (updater: (current: PassportData) => PassportData) => {
-    setPassportData(updater);
-  };
+  const updatePassportData = (updater: (c: PassportData) => PassportData) => setPassportData(updater);
 
   const handleProfileChange = (key: keyof Profile, value: string) => {
-    setProfileDraft((current) => ({
-      ...current,
-      [key]: key === "age" || key === "heightCm" || key === "weightKg" ? Number(value) : value,
-    }));
+    setProfileDraft((c) => ({ ...c, [key]: key === "age" || key === "heightCm" || key === "weightKg" ? Number(value) : value }));
   };
 
   const handleProfileButtonClick = () => {
-    if (!isEditingProfile) {
-      setProfileDraft(profile);
-      setIsEditingProfile(true);
-      return;
-    }
-
-    const savedProfile = {
-      ...profileDraft,
-      bmi: calculateBmi(profileDraft.heightCm, profileDraft.weightKg),
-    };
-    updatePassportData((current) => ({
-      ...current,
-      profile: savedProfile,
-    }));
-    setProfileDraft(savedProfile);
+    if (!isEditingProfile) { setProfileDraft(profile); setIsEditingProfile(true); return; }
+    const saved = { ...profileDraft, bmi: calculateBmi(profileDraft.heightCm, profileDraft.weightKg) };
+    updatePassportData((c) => ({ ...c, profile: saved }));
+    setProfileDraft(saved);
     setIsEditingProfile(false);
   };
 
   const handleInteractionChange = (key: keyof Interaction, value: string) => {
-    updatePassportData((current) => ({
-      ...current,
-      interaction: {
-        ...current.interaction,
-        [key]: value,
-      },
-    }));
+    updatePassportData((c) => ({ ...c, interaction: { ...c.interaction, [key]: value } }));
   };
 
   const triggerMealPicker = (mode: "camera" | "upload") => {
     if (isAnalyzingMeal) return;
-    const input = mode === "camera" ? mealCameraInputRef.current : mealUploadInputRef.current;
-    input?.click();
+    (mode === "camera" ? mealCameraInputRef : mealUploadInputRef).current?.click();
   };
 
   const analyzeMealPhoto = async (file: File) => {
     if (isAnalyzingMeal) return;
-
     setIsAnalyzingMeal(true);
     setMealPhotoError(null);
-    updatePassportData((current) => ({
-      ...current,
-      mealPhotoStatus: "AI is analyzing your meal photo...",
-    }));
-
+    updatePassportData((c) => ({ ...c, mealPhotoStatus: "AI is analyzing your meal photo..." }));
     try {
       const image = await readFileAsDataUrl(file);
-      const response = await fetch("/api/analyze-food", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ image }),
-      });
-      const analysis = await readJsonResponse<FoodAnalysis>(response);
+      const res = await fetch("/api/analyze-food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }) });
+      const analysis = await readJsonResponse<FoodAnalysis>(res);
       const foodName = analysis.foodName.trim() || "Unknown food";
-      const estimatedCalories = Math.max(0, Math.round(analysis.estimatedCalories));
-
-      updatePassportData((current) => ({
-        ...current,
-        mealPhotoStatus: `Detected: ${foodName}, ${formatNumber.format(estimatedCalories)} kcal`,
-        dynamicHealth: {
-          ...current.dynamicHealth,
-          calories: {
-            ...current.dynamicHealth.calories,
-            intake: estimatedCalories,
-            mealEstimate: foodName,
-            lastMealKcal: estimatedCalories,
-          },
-        },
+      const kcal = Math.max(0, Math.round(analysis.estimatedCalories));
+      updatePassportData((c) => ({
+        ...c,
+        mealPhotoStatus: `Detected: ${foodName}, ${formatNumber.format(kcal)} kcal`,
+        dynamicHealth: { ...c.dynamicHealth, calories: { ...c.dynamicHealth.calories, intake: kcal, mealEstimate: foodName, lastMealKcal: kcal } },
       }));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to analyze this image.";
-      setMealPhotoError(message);
-      updatePassportData((current) => ({
-        ...current,
-        mealPhotoStatus: "Meal photo analysis failed. Try another image.",
-      }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unable to analyze this image.";
+      setMealPhotoError(msg);
+      updatePassportData((c) => ({ ...c, mealPhotoStatus: "Meal photo analysis failed. Try another image." }));
     } finally {
       setIsAnalyzingMeal(false);
     }
@@ -715,563 +676,400 @@ export default function PassportPage() {
   const handleMealPhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setMealPhotoError("Please choose an image file.");
-      return;
-    }
-
+    if (!file.type.startsWith("image/")) { setMealPhotoError("Please choose an image file."); return; }
     void analyzeMealPhoto(file);
   };
 
   const handleVoiceCommand = () => {
     if (isVoiceActive || isUpdatingProfileFromVoice) return;
-
-    const SpeechRecognition = getSpeechRecognitionConstructor();
-
-    if (!SpeechRecognition) {
-      setVoiceError("Voice recognition is not supported in this browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.continuous = false;
-
-    recognition.onstart = () => {
-      setIsVoiceActive(true);
-      setVoiceError(null);
-      setVoiceTranscript("");
-    };
-
-    recognition.onerror = (event) => {
-      setVoiceError(event.error === "not-allowed" ? "Microphone permission was denied." : "Voice recognition failed.");
-      setIsVoiceActive(false);
-      setIsUpdatingProfileFromVoice(false);
-    };
-
-    recognition.onend = () => {
-      setIsVoiceActive(false);
-    };
-
-    recognition.onresult = (event) => {
-      const transcriptParts: string[] = [];
-
-      for (let resultIndex = 0; resultIndex < event.results.length; resultIndex += 1) {
-        const result = event.results[resultIndex];
-        for (let itemIndex = 0; itemIndex < result.length; itemIndex += 1) {
-          transcriptParts.push(result[itemIndex].transcript);
-        }
-      }
-
-      const transcript = transcriptParts.join(" ").trim();
+    const SR = getSpeechRecognitionConstructor();
+    if (!SR) { setVoiceError("Voice recognition is not supported in this browser."); return; }
+    const r = new SR();
+    r.lang = "en-US"; r.interimResults = false; r.continuous = false;
+    r.onstart = () => { setIsVoiceActive(true); setVoiceError(null); setVoiceTranscript(""); };
+    r.onerror = (e) => { setVoiceError(e.error === "not-allowed" ? "Microphone permission was denied." : "Voice recognition failed."); setIsVoiceActive(false); setIsUpdatingProfileFromVoice(false); };
+    r.onend = () => setIsVoiceActive(false);
+    r.onresult = (e) => {
+      const parts: string[] = [];
+      for (let i = 0; i < e.results.length; i++) for (let j = 0; j < e.results[i].length; j++) parts.push(e.results[i][j].transcript);
+      const transcript = parts.join(" ").trim();
       setVoiceTranscript(transcript);
-
-      if (!transcript) {
-        setVoiceError("No speech was detected.");
-        return;
-      }
-
+      if (!transcript) { setVoiceError("No speech detected."); return; }
       setIsUpdatingProfileFromVoice(true);
-
       void (async () => {
         try {
-          const response = await fetch("/api/extract-profile", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              text: transcript,
-              currentProfile: passportData.profile,
-            }),
-          });
-          const { profile: updatedProfile } = await readJsonResponse<ExtractProfileResponse>(response);
-          const savedProfile = {
-            ...updatedProfile,
-            bmi: calculateBmi(updatedProfile.heightCm, updatedProfile.weightKg),
-          };
-
-          updatePassportData((current) => ({
-            ...current,
-            profile: savedProfile,
-          }));
-          setProfileDraft(savedProfile);
-          setIsEditingProfile(false);
-          setVoiceError(null);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Unable to update profile from voice.";
-          setVoiceError(message);
-        } finally {
-          setIsUpdatingProfileFromVoice(false);
-        }
+          const res = await fetch("/api/extract-profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: transcript, currentProfile: passportData.profile }) });
+          const { profile: updated } = await readJsonResponse<ExtractProfileResponse>(res);
+          const saved = { ...updated, bmi: calculateBmi(updated.heightCm, updated.weightKg) };
+          updatePassportData((c) => ({ ...c, profile: saved }));
+          setProfileDraft(saved); setIsEditingProfile(false); setVoiceError(null);
+        } catch (err) {
+          setVoiceError(err instanceof Error ? err.message : "Unable to update profile from voice.");
+        } finally { setIsUpdatingProfileFromVoice(false); }
       })();
     };
-
-    try {
-      recognition.start();
-    } catch {
-      setVoiceError("Unable to start microphone capture.");
-      setIsVoiceActive(false);
-    }
+    try { r.start(); } catch { setVoiceError("Unable to start microphone capture."); setIsVoiceActive(false); }
   };
 
-  const appendChatMessage = (message: ChatMessage) => {
-    updatePassportData((current) => ({
-      ...current,
-      chatMessages: [...current.chatMessages, message],
-    }));
-  };
+  const appendChat = (msg: ChatMessage) => updatePassportData((c) => ({ ...c, chatMessages: [...c.chatMessages, msg] }));
 
-  const handleChatSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const messageText = chatInput.trim();
-    if (!messageText || isBotTyping) return;
-
-    appendChatMessage({
-      id: `user-${Date.now()}`,
-      role: "user",
-      text: messageText,
-    });
+  const handleChatSubmit = () => {
+    const text = chatInput.trim();
+    if (!text || isBotTyping) return;
+    appendChat({ id: `user-${Date.now()}`, role: "user", text });
     setChatInput("");
     setIsBotTyping(true);
-
     window.setTimeout(() => {
-      appendChatMessage({
-        id: `bot-${Date.now()}`,
-        role: "bot",
-        text: "Noted! I have updated your daily context. How else can I help?",
-      });
+      appendChat({ id: `bot-${Date.now()}`, role: "bot", text: "Noted! I have updated your daily context. How else can I help?" });
       setIsBotTyping(false);
     }, 1000);
   };
 
-  return (
-    <main className="min-h-full bg-slate-50 pb-8 font-sans">
-      <section className="border-b border-slate-200 bg-white">
-        <div className="grid gap-6 px-4 py-6">
-          <div>
-            <div className="mb-5 flex flex-wrap items-center gap-3 text-sm font-semibold text-slate-500">
-              <Link href="/" className="inline-flex items-center gap-2 text-teal-700 hover:text-teal-800">
-                Home
-              </Link>
-              <ChevronRight className="h-4 w-4" />
-              Health Passport
-            </div>
-            <div className="max-w-3xl">
-              <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-sm font-semibold text-teal-700">
-                <Sparkles className="h-4 w-4" />
-                Live environment, LLM intake, local-first profile
-              </p>
-              <h1 className="text-4xl font-extrabold tracking-tight text-slate-950">
-                Health Passport
-              </h1>
-              <p className="mt-4 text-lg leading-8 text-slate-600">
-                A single user health profile that combines baseline medical context, wearable signals,
-                location environment, and conversational check-ins.
-              </p>
-            </div>
-          </div>
+  const handleChatVoice = () => {
+    if (isChatVoiceActive) return;
+    const SR = getSpeechRecognitionConstructor();
+    if (!SR) return;
+    const r = new SR();
+    r.lang = "en-US"; r.interimResults = false; r.continuous = false;
+    r.onstart = () => setIsChatVoiceActive(true);
+    r.onend = () => setIsChatVoiceActive(false);
+    r.onerror = () => setIsChatVoiceActive(false);
+    r.onresult = (e) => {
+      const parts: string[] = [];
+      for (let i = 0; i < e.results.length; i++) for (let j = 0; j < e.results[i].length; j++) parts.push(e.results[i][j].transcript);
+      setChatInput(parts.join(" ").trim());
+    };
+    try { r.start(); } catch { setIsChatVoiceActive(false); }
+  };
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-teal-200">Readiness Snapshot</p>
-                <p className="mt-1 text-3xl font-extrabold">82%</p>
-              </div>
-              <HeartPulse className="h-10 w-10 text-teal-300" />
-            </div>
-            <div className="space-y-4">
-              <div>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="text-slate-300">Recovery</span>
-                  <span className="font-semibold">Strong</span>
-                </div>
-                <div className="h-2 rounded-full bg-white/10">
-                  <div className="h-2 w-[82%] rounded-full bg-teal-400" />
-                </div>
-              </div>
-              <p className="text-sm leading-6 text-slate-300">
-                Sleep and HRV are trending better. PM2.5 and UV are the main environment risks today.
-              </p>
-            </div>
+  return (
+    <main className="min-h-full bg-slate-50 pb-24 font-sans">
+      {/* Compact sticky header — replaces the old full header section */}
+      <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-4 py-3 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">Health Passport</p>
+            <p className="text-base font-extrabold text-slate-950">{profile.name}</p>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-2xl bg-teal-50 px-3 py-1.5">
+            <HeartPulse className="h-3.5 w-3.5 text-teal-700" />
+            <span className="text-xs font-bold text-teal-700">82% Readiness</span>
           </div>
         </div>
-      </section>
+      </div>
 
-      <div className="grid gap-6 px-4 pt-6">
+      <div className="grid gap-4 px-4 pt-4">
+        {/* 1. Collapsible Static Profile */}
         <section>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-start justify-between gap-4">
+          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <button
+              type="button"
+              onClick={() => setIsProfileOpen((p) => !p)}
+              className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-slate-50"
+            >
               <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                  Static Profile
-                </p>
-                <h2 className="mt-2 text-2xl font-extrabold text-slate-950">Baseline health</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Filled once during onboarding, then editable whenever the user needs to update it.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleProfileButtonClick}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-600 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700"
-                aria-label={isEditingProfile ? "Save profile" : "Edit profile"}
-              >
-                {isEditingProfile ? <Save className="h-4 w-4" /> : <Edit3 className="h-4 w-4" />}
-                {isEditingProfile ? "Save" : "Edit"}
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-400">Name</span>
-                {isEditingProfile ? (
-                  <input
-                    value={profileDraft.name}
-                    onChange={(event) => handleProfileChange("name", event.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-teal-400 focus:bg-white"
-                  />
-                ) : (
-                  <div className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900">
-                    {profile.name}
-                  </div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-700">Static Profile</p>
+                <p className="mt-0.5 text-base font-extrabold text-slate-950">Baseline health</p>
+                {!isProfileOpen && (
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    BMI {profile.bmi.toFixed(1)} · {getBmiStatus(profile.bmi)} · Age {profile.age}
+                  </p>
                 )}
-              </label>
-
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  ["Age", "age", "years"],
-                  ["Height", "heightCm", "cm"],
-                  ["Weight", "weightKg", "kg"],
-                ].map(([label, key, unit]) => (
-                  <label key={key} className="block">
-                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
-                    <div className="mt-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                      <input
-                        type="number"
-                        value={visibleProfile[key as keyof Profile]}
-                        disabled={!isEditingProfile}
-                        onChange={(event) => handleProfileChange(key as keyof Profile, event.target.value)}
-                        className="w-full bg-transparent text-lg font-extrabold text-slate-900 outline-none disabled:opacity-100"
-                      />
-                      <span className="text-xs font-semibold text-slate-400">{unit}</span>
-                    </div>
-                  </label>
-                ))}
               </div>
+              <div className="flex-shrink-0 rounded-full bg-slate-100 p-1.5">
+                {isProfileOpen ? <ChevronUp className="h-4 w-4 text-slate-600" /> : <ChevronDown className="h-4 w-4 text-slate-600" />}
+              </div>
+            </button>
 
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">BMI</p>
-                    <p className="mt-1 text-2xl font-extrabold text-emerald-950">
-                      {(isEditingProfile ? draftBmi : profile.bmi).toFixed(1)}
-                    </p>
+            {isProfileOpen && (
+              <div className="border-t border-slate-100 px-5 pb-5">
+                <div className="mt-4 mb-5 flex items-center justify-between">
+                  <p className="text-xs text-slate-400">Tap Edit to update your info</p>
+                  <button
+                    type="button"
+                    onClick={handleProfileButtonClick}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-xs font-bold text-slate-600 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700"
+                    aria-label={isEditingProfile ? "Save profile" : "Edit profile"}
+                  >
+                    {isEditingProfile ? <Save className="h-3.5 w-3.5" /> : <Edit3 className="h-3.5 w-3.5" />}
+                    {isEditingProfile ? "Save" : "Edit"}
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Name</span>
+                    {isEditingProfile ? (
+                      <input
+                        value={profileDraft.name}
+                        onChange={(e) => handleProfileChange("name", e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-teal-400 focus:bg-white"
+                      />
+                    ) : (
+                      <div className="mt-1 w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-900">
+                        {profile.name}
+                      </div>
+                    )}
+                  </label>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    {([["Age", "age", "yr"], ["Height", "heightCm", "cm"], ["Weight", "weightKg", "kg"]] as const).map(([label, key, unit]) => (
+                      <label key={key} className="block">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</span>
+                        <div className="mt-1 rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-2">
+                          <input
+                            type="number"
+                            value={visibleProfile[key]}
+                            disabled={!isEditingProfile}
+                            onChange={(e) => handleProfileChange(key, e.target.value)}
+                            className="w-full bg-transparent text-base font-extrabold text-slate-900 outline-none disabled:opacity-100"
+                          />
+                          <span className="text-[10px] font-semibold text-slate-400">{unit}</span>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-sm font-bold text-emerald-700">
-                    {getBmiStatus(isEditingProfile ? draftBmi : profile.bmi)}
-                  </span>
+
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">BMI</p>
+                        <p className="mt-0.5 text-xl font-extrabold text-emerald-950">
+                          {(isEditingProfile ? draftBmi : profile.bmi).toFixed(1)}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-emerald-700">
+                        {getBmiStatus(isEditingProfile ? draftBmi : profile.bmi)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {([["Medication allergies", "medicationAllergies", ShieldAlert], ["Food allergies", "foodAllergies", Utensils], ["Underlying conditions", "chronicConditions", Activity]] as const).map(([label, key, Icon]) => (
+                    <label key={key} className="block">
+                      <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <Icon className="h-3.5 w-3.5" />
+                        {label}
+                      </span>
+                      {isEditingProfile ? (
+                        <textarea
+                          value={profileDraft[key]}
+                          onChange={(e) => handleProfileChange(key, e.target.value)}
+                          rows={2}
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-6 text-slate-700 outline-none transition focus:border-teal-400 focus:bg-white"
+                        />
+                      ) : (
+                        <div className="min-h-16 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-6 text-slate-700">
+                          {profile[key]}
+                        </div>
+                      )}
+                    </label>
+                  ))}
                 </div>
               </div>
+            )}
+          </div>
+        </section>
 
-              {[
-                ["Medication allergies", "medicationAllergies", ShieldAlert],
-                ["Food allergies", "foodAllergies", Utensils],
-                ["Underlying conditions", "chronicConditions", Activity],
-              ].map(([label, key, Icon]) => (
-                <label key={key as string} className="block">
-                  <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
-                    <Icon className="h-4 w-4" />
-                    {label as string}
-                  </span>
-                  {isEditingProfile ? (
-                    <textarea
-                      value={profileDraft[key as keyof Profile]}
-                      onChange={(event) => handleProfileChange(key as keyof Profile, event.target.value)}
-                      rows={2}
-                      className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700 outline-none transition focus:border-teal-400 focus:bg-white"
-                    />
-                  ) : (
-                    <div className="min-h-20 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700">
-                      {profile[key as keyof Profile]}
-                    </div>
-                  )}
-                </label>
-              ))}
+        {/* 2. Smartwatch Health Card Widgets (2×2 grid) */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Watch className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-extrabold text-slate-700">Smartwatch Data</h2>
+            </div>
+            <span className="text-[10px] font-semibold text-slate-400">Tap for details</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <HealthClickCard
+              title="Sleep"
+              value={`${dynamicHealth.sleep.durationHours}h`}
+              subtitle={`${dynamicHealth.sleep.quality}% quality`}
+              icon={<Moon className="h-4 w-4 text-indigo-600" />}
+              accentBg="bg-indigo-50"
+              accentText="text-indigo-900"
+              onClick={() => setActiveModal("sleep")}
+            />
+            <HealthClickCard
+              title="Stress"
+              value={dynamicHealth.stress.level}
+              subtitle={`HRV ${dynamicHealth.stress.hrvMs} ms`}
+              icon={<HeartPulse className="h-4 w-4 text-rose-600" />}
+              accentBg="bg-rose-50"
+              accentText="text-rose-900"
+              onClick={() => setActiveModal("stress")}
+            />
+            <HealthClickCard
+              title="PAI Score"
+              value={`${dynamicHealth.pai.score}`}
+              subtitle={`${dynamicHealth.pai.range} · /${dynamicHealth.pai.weeklyTarget}`}
+              icon={<Dumbbell className="h-4 w-4 text-emerald-600" />}
+              accentBg="bg-emerald-50"
+              accentText="text-emerald-900"
+              onClick={() => setActiveModal("pai")}
+            />
+            <HealthClickCard
+              title="Calories"
+              value={`${calorieBalance > 0 ? "+" : ""}${formatNumber.format(calorieBalance)}`}
+              unit="kcal"
+              subtitle={`${formatNumber.format(dynamicHealth.calories.steps)} steps`}
+              icon={<Utensils className="h-4 w-4 text-amber-600" />}
+              accentBg="bg-amber-50"
+              accentText="text-amber-900"
+              onClick={() => setActiveModal("calories")}
+            />
+          </div>
+        </section>
+
+        {/* 3. Environment Block */}
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CloudSun className="h-4 w-4 text-teal-700" />
+              <h2 className="text-sm font-extrabold text-slate-700">Environment</h2>
+            </div>
+            <span className="text-[10px] font-semibold text-slate-400">Tap for forecast</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveModal("environment")}
+            className="w-full rounded-2xl border border-slate-100 bg-white p-4 shadow-sm text-left transition-all hover:shadow-md hover:border-slate-200 active:scale-[0.97]"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                <MapPin className="h-3.5 w-3.5 text-teal-600" />
+                {environment.location}
+              </div>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">
+                {isLoadingEnvironment ? "Loading…" : environment.source}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className={`rounded-xl border p-2.5 text-center ${getPmBg(environment.pm25)}`}>
+                <Wind className="mx-auto mb-1 h-3.5 w-3.5 text-slate-400" />
+                <p className="text-[10px] font-semibold text-slate-500">PM 2.5</p>
+                <p className="text-base font-extrabold text-slate-950">{environment.pm25}</p>
+                <p className={`text-[10px] font-bold ${getPmTone(environment.pm25)}`}>{getPmLabel(environment.pm25)}</p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-2.5 text-center">
+                <Sun className="mx-auto mb-1 h-3.5 w-3.5 text-amber-500" />
+                <p className="text-[10px] font-semibold text-slate-500">UV Index</p>
+                <p className="text-base font-extrabold text-slate-950">{environment.uv}</p>
+                <p className="text-[10px] font-bold text-amber-600">{getUvLabel(environment.uv)}</p>
+              </div>
+              <div className="rounded-xl border border-orange-100 bg-orange-50 p-2.5 text-center">
+                <Thermometer className="mx-auto mb-1 h-3.5 w-3.5 text-orange-500" />
+                <p className="text-[10px] font-semibold text-slate-500">Temp</p>
+                <p className="text-base font-extrabold text-slate-950">{environment.temperature}°</p>
+                <p className="text-[10px] font-bold text-orange-600">{environment.condition}</p>
+              </div>
+            </div>
+          </button>
+          {environmentError && (
+            <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+              {environmentError}
+            </div>
+          )}
+        </section>
+
+        {/* 4. Food Calorie Feature */}
+        <section>
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-700">Calorie Intelligence</p>
+                <h2 className="mt-0.5 text-base font-extrabold text-slate-950">Meal photo estimate</h2>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50">
+                <Camera className="h-5 w-5 text-amber-600" />
+              </div>
+            </div>
+            <p className="mb-4 text-xs leading-5 text-slate-400">
+              Upload or capture a meal photo and the AI will estimate the dish and calories.
+            </p>
+            <input ref={mealCameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleMealPhotoChange} className="hidden" />
+            <input ref={mealUploadInputRef} type="file" accept="image/*" onChange={handleMealPhotoChange} className="hidden" />
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => triggerMealPicker("camera")}
+                disabled={isAnalyzingMeal}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isAnalyzingMeal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                Take a photo
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerMealPicker("upload")}
+                disabled={isAnalyzingMeal}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:text-slate-300"
+              >
+                {isAnalyzingMeal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                Upload
+              </button>
+            </div>
+            <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs font-semibold leading-5 text-amber-800">
+              {passportData.mealPhotoStatus}
+            </div>
+            {mealPhotoError && (
+              <div className="mt-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700">
+                {mealPhotoError}
+              </div>
+            )}
+            <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded-xl bg-slate-50 p-3 text-center">
+                <p className="font-semibold text-slate-400">Intake</p>
+                <p className="mt-1 text-base font-extrabold text-slate-950">{formatNumber.format(dynamicHealth.calories.intake)}</p>
+                <p className="text-[10px] text-slate-400">kcal</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3 text-center">
+                <p className="font-semibold text-slate-400">Steps</p>
+                <p className="mt-1 text-base font-extrabold text-slate-950">{formatNumber.format(dynamicHealth.calories.steps)}</p>
+                <p className="text-[10px] text-slate-400">today</p>
+              </div>
+              <div className="rounded-xl bg-slate-50 p-3 text-center">
+                <p className="font-semibold text-slate-400">Heart</p>
+                <p className="mt-1 text-base font-extrabold text-slate-950">{dynamicHealth.calories.averageHeartRate}</p>
+                <p className="text-[10px] text-slate-400">bpm avg</p>
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="space-y-6">
-          <div className="grid gap-4">
-            <MetricCard
-              title="Sleep"
-              value={`${dynamicHealth.sleep.durationHours}h`}
-              detail={`${dynamicHealth.sleep.quality}% quality from ${dynamicHealth.sleep.bedTime} to ${dynamicHealth.sleep.wakeTime}.`}
-              icon={<Moon className="h-5 w-5 text-indigo-700" />}
-              tone="bg-indigo-50"
-            />
-            <MetricCard
-              title="Stress"
-              value={dynamicHealth.stress.level}
-              detail={`HRV ${dynamicHealth.stress.hrvMs} ms, stress score ${dynamicHealth.stress.score}. Mood: ${dynamicHealth.stress.expression}.`}
-              icon={<HeartPulse className="h-5 w-5 text-rose-700" />}
-              tone="bg-rose-50"
-            />
-            <MetricCard
-              title="PAI Score"
-              value={`${dynamicHealth.pai.score}`}
-              detail={`${dynamicHealth.pai.range} range toward a weekly target of ${dynamicHealth.pai.weeklyTarget}.`}
-              icon={<Dumbbell className="h-5 w-5 text-emerald-700" />}
-              tone="bg-emerald-50"
-            />
-            <MetricCard
-              title="Calories"
-              value={`${calorieBalance > 0 ? "+" : ""}${formatNumber.format(calorieBalance)}`}
-              detail={`${formatNumber.format(dynamicHealth.calories.intake)} kcal in, ${formatNumber.format(dynamicHealth.calories.output)} kcal out.`}
-              icon={<Utensils className="h-5 w-5 text-amber-700" />}
-              tone="bg-amber-50"
-            />
-          </div>
-
-          <div className="grid gap-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-500">Sleep History</p>
-                  <h3 className="text-xl font-extrabold text-slate-950">Quality trend</h3>
-                </div>
-                <Watch className="h-5 w-5 text-slate-400" />
-              </div>
-              <MiniBars data={dynamicHealth.sleep.history} max={100} colorClass="bg-indigo-500" />
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-500">Stress History</p>
-                  <h3 className="text-xl font-extrabold text-slate-950">HRV-based score</h3>
-                </div>
-                <Activity className="h-5 w-5 text-slate-400" />
-              </div>
-              <MiniBars data={dynamicHealth.stress.trend} max={70} colorClass="bg-rose-500" />
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-500">PAI History</p>
-                  <h3 className="text-xl font-extrabold text-slate-950">Weekly range</h3>
-                </div>
-                <div className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700">
-                  {Math.round(paiProgress)}%
-                </div>
-              </div>
-              <MiniBars data={dynamicHealth.pai.history} max={100} colorClass="bg-emerald-500" />
-            </div>
-          </div>
-
-          <div className="grid gap-6">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                    Calorie Intelligence
-                  </p>
-                  <h2 className="mt-2 text-2xl font-extrabold text-slate-950">Meal photo estimate</h2>
-                </div>
-                <Camera className="h-6 w-6 text-slate-400" />
-              </div>
-              <p className="text-sm leading-6 text-slate-500">
-                Upload or capture a meal photo and the LLM vision endpoint will estimate the dish and calories.
-              </p>
-              <input
-                ref={mealCameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={handleMealPhotoChange}
-                className="hidden"
-              />
-              <input
-                ref={mealUploadInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleMealPhotoChange}
-                className="hidden"
-              />
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => triggerMealPicker("camera")}
-                  disabled={isAnalyzingMeal}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3 font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                >
-                  {isAnalyzingMeal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  Take a photo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => triggerMealPicker("upload")}
-                  disabled={isAnalyzingMeal}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-bold text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700 disabled:cursor-not-allowed disabled:text-slate-400"
-                >
-                  {isAnalyzingMeal ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                  Upload
-                </button>
-              </div>
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
-                {passportData.mealPhotoStatus}
-              </div>
-              {mealPhotoError ? (
-                <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">
-                  {mealPhotoError}
-                </div>
-              ) : null}
-              <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-500">Intake</p>
-                  <p className="mt-1 text-xl font-extrabold text-slate-950">
-                    {formatNumber.format(dynamicHealth.calories.intake)} kcal
-                  </p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4">
-                  <p className="font-semibold text-slate-500">Steps</p>
-                  <p className="mt-1 text-xl font-extrabold text-slate-950">
-                    {formatNumber.format(dynamicHealth.calories.steps)}
-                  </p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-4 sm:col-span-2">
-                  <p className="font-semibold text-slate-500">Avg Heart Rate</p>
-                  <p className="mt-1 text-xl font-extrabold text-slate-950">
-                    {dynamicHealth.calories.averageHeartRate} bpm
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                    Environment
-                  </p>
-                  <h2 className="mt-2 text-2xl font-extrabold text-slate-950">Current surroundings</h2>
-                </div>
-                <MapPin className="h-6 w-6 text-slate-400" />
-              </div>
-
-              <div className="mb-5 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-600">
-                <MapPin className="h-4 w-4 text-teal-700" />
-                <span className="text-slate-700">{currentLocationName}</span>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500">
-                  {isLoadingEnvironment ? "Loading live data..." : environment.source}
-                </span>
-              </div>
-              {environmentError ? (
-                <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-                  {environmentError}
-                </div>
-              ) : null}
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
-                    <Wind className="h-4 w-4" />
-                    PM 2.5
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-950">{environment.pm25}</p>
-                  <p className={`text-sm font-semibold ${getPmTone(environment.pm25)}`}>
-                    {getPmLabel(environment.pm25)}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
-                    <Sun className="h-4 w-4" />
-                    UV Index
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-950">{environment.uv}</p>
-                  <p className="text-sm font-semibold text-amber-700">{getUvLabel(environment.uv)}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
-                    <Thermometer className="h-4 w-4" />
-                    Temperature
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-950">{environment.temperature}&deg;C</p>
-                  <p className="text-sm font-semibold text-slate-500">{environment.condition}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-500">
-                    <AirVent className="h-4 w-4" />
-                    Humidity
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-950">{environment.humidity}%</p>
-                  <p className="text-sm font-semibold text-slate-500">Hydrate often</p>
-                </div>
-              </div>
-
-              <div className="mt-5 divide-y divide-slate-100 rounded-xl border border-slate-200">
-                {environment.forecast.map((item) => (
-                  <div key={item.time} className="flex items-center justify-between gap-4 px-4 py-3">
-                    <span className="text-sm font-bold text-slate-500">{item.time}</span>
-                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                      <CloudSun className="h-4 w-4 text-teal-700" />
-                      {item.condition}
-                    </span>
-                    <span className="text-sm font-extrabold text-slate-950">{item.temp}&deg;C</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex flex-col gap-4">
+        {/* 5. Interaction Intake (chat moved to FAB) */}
+        <section>
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex flex-col gap-3">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">
-                  Interaction Intake
-                </p>
-                <h2 className="mt-2 text-2xl font-extrabold text-slate-950">AI check-in prompts</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Voice commands update the local profile through an LLM extraction endpoint, while chat stays as-is.
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-700">Interaction Intake</p>
+                <h2 className="mt-0.5 text-base font-extrabold text-slate-950">AI check-in prompts</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-400">
+                  Voice commands update your profile through an LLM extraction endpoint.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleVoiceCommand}
                 disabled={isVoiceActive || isUpdatingProfileFromVoice}
-                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition ${
+                className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
                   isVoiceActive || isUpdatingProfileFromVoice
-                    ? "bg-rose-600 text-white disabled:cursor-not-allowed"
+                    ? "bg-rose-500 text-white"
                     : "bg-teal-600 text-white hover:bg-teal-700"
                 }`}
               >
-                {isVoiceActive || isUpdatingProfileFromVoice ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Mic className="h-4 w-4" />
-                )}
+                {isVoiceActive || isUpdatingProfileFromVoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                 {isUpdatingProfileFromVoice ? "Updating Profile" : isVoiceActive ? "Voice Listening" : "Start Voice"}
               </button>
             </div>
-            {voiceTranscript || voiceError ? (
-              <div
-                className={`mb-5 rounded-xl border p-3 text-sm font-semibold ${
-                  voiceError
-                    ? "border-rose-200 bg-rose-50 text-rose-700"
-                    : "border-teal-200 bg-teal-50 text-teal-900"
-                }`}
-              >
+
+            {(voiceTranscript || voiceError) && (
+              <div className={`mb-4 rounded-xl border p-3 text-xs font-semibold ${voiceError ? "border-rose-200 bg-rose-50 text-rose-700" : "border-teal-200 bg-teal-50 text-teal-900"}`}>
                 {voiceError ?? `Heard: ${voiceTranscript}`}
               </div>
-            ) : null}
+            )}
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               {[
                 ["Primary healing goal", "goal", prompts[0]],
                 ["Dietary preferences", "diet", prompts[1]],
@@ -1279,85 +1077,317 @@ export default function PassportPage() {
                 ["Extra notes", "notes", prompts[3]],
               ].map(([label, key, prompt]) => (
                 <label key={key} className="block">
-                  <span className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <MessageCircle className="h-4 w-4 text-teal-700" />
+                  <span className="mb-1 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                    <MessageCircle className="h-3.5 w-3.5 text-teal-600" />
                     {label}
                   </span>
-                  <p className="mb-2 text-xs font-semibold text-slate-400">{prompt}</p>
+                  <p className="mb-1.5 text-[10px] font-semibold text-slate-400">{prompt}</p>
                   <textarea
                     value={interaction[key as keyof Interaction]}
-                    onChange={(event) => handleInteractionChange(key as keyof Interaction, event.target.value)}
-                    rows={3}
-                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium leading-6 text-slate-700 outline-none transition focus:border-teal-400 focus:bg-white"
+                    onChange={(e) => handleInteractionChange(key as keyof Interaction, e.target.value)}
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-6 text-slate-700 outline-none transition focus:border-teal-400 focus:bg-white"
                   />
                 </label>
               ))}
             </div>
 
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-700">
-                <MessageCircle className="h-4 w-4 text-teal-700" />
-                Mock chat
-              </div>
-              <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
-                {passportData.chatMessages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm font-medium leading-6 ${
-                        message.role === "user"
-                          ? "bg-teal-700 text-white"
-                          : "border border-slate-200 bg-white text-slate-700"
-                      }`}
-                    >
-                      {message.text}
-                    </div>
-                  </div>
-                ))}
-                {isBotTyping ? (
-                  <div className="flex justify-start">
-                    <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
-                      <Loader2 className="h-4 w-4 animate-spin text-teal-700" />
-                      AI is typing...
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <form onSubmit={handleChatSubmit} className="mt-4 flex gap-2">
-                <input
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  placeholder="Type a message..."
-                  className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-teal-400"
-                />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim() || isBotTyping}
-                  className="inline-flex items-center justify-center rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-3 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
-              <span className="flex items-center gap-2 font-semibold">
-                <Check className="h-4 w-4" />
-                Ready to sync with user profile, wearable APIs, environment APIs, and chat history.
+            <div className="mt-5 flex flex-col gap-2.5 rounded-xl border border-teal-100 bg-teal-50 p-4">
+              <span className="flex items-center gap-2 text-xs font-semibold text-teal-800">
+                <Check className="h-3.5 w-3.5" />
+                Ready to sync with wearable APIs, environment, and chat history.
               </span>
               <Link
-                href="/diet"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-5 py-2 font-bold text-white transition hover:bg-teal-800"
+                href="/journey"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-800"
               >
-                Generate Diet Plan
+                Generate Journey
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
         </section>
       </div>
+
+      {/* Phone-scoped overlay — FAB + chat window stay within the 430 px shell */}
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-0 top-0 z-40 flex justify-center"
+        aria-hidden="true"
+      >
+        <div className="pointer-events-none relative h-full w-full max-w-[430px]">
+          {/* FAB */}
+          {!isChatOpen && (
+            <button
+              type="button"
+              aria-label="Open AI consultation"
+              onClick={() => setIsChatOpen(true)}
+              className="pointer-events-auto absolute bottom-20 right-4 flex h-14 w-14 items-center justify-center rounded-full bg-teal-700 shadow-xl text-white transition hover:bg-teal-800 active:scale-95"
+            >
+              <MessageCircle className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* Chat window */}
+          {isChatOpen && (
+            <div
+              className="pointer-events-auto absolute bottom-20 right-4 flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl"
+              style={{ width: "calc(100% - 2rem)", maxWidth: "320px", maxHeight: "420px" }}
+            >
+              {/* Chat header */}
+              <div className="flex shrink-0 items-center justify-between bg-slate-950 px-4 py-3">
+                <span className="flex items-center gap-2 font-bold text-white">
+                  <Sparkles className="h-4 w-4 text-teal-300" />
+                  AI Consultation
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(false)}
+                  className="rounded-full p-1.5 hover:bg-white/10 transition"
+                  aria-label="Close chat"
+                >
+                  <X className="h-4 w-4 text-slate-300" />
+                </button>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto space-y-3 bg-slate-50 p-3">
+                {passportData.chatMessages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3 py-2.5 text-sm font-medium leading-5 ${
+                        msg.role === "user" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white text-slate-700"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {isBotTyping && (
+                  <div className="flex justify-start">
+                    <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-500">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-600" />
+                      AI is typing…
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input form */}
+              <form onSubmit={(e) => { e.preventDefault(); handleChatSubmit(); }} className="flex shrink-0 gap-2 border-t border-slate-100 bg-white p-3">
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type a message…"
+                  className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 outline-none transition focus:border-teal-400 focus:bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={handleChatVoice}
+                  disabled={isChatVoiceActive}
+                  className={`flex-shrink-0 rounded-xl px-2.5 py-2 transition ${isChatVoiceActive ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
+                  aria-label="Voice input"
+                >
+                  {isChatVoiceActive ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
+                </button>
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || isBotTyping}
+                  className="flex-shrink-0 rounded-xl bg-teal-700 px-3 py-2 text-sm font-bold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-200"
+                >
+                  Send
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Modals (bottom-sheet, phone-width) ─────────────────────────── */}
+
+      {activeModal === "sleep" && (
+        <Modal title="Sleep Details" onClose={() => setActiveModal(null)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-indigo-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Duration</p>
+                <p className="mt-1 text-3xl font-extrabold text-indigo-900">{dynamicHealth.sleep.durationHours}h</p>
+              </div>
+              <div className="rounded-2xl bg-indigo-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Quality</p>
+                <p className="mt-1 text-3xl font-extrabold text-indigo-900">{dynamicHealth.sleep.quality}%</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bed Time</p>
+                <p className="mt-1 text-lg font-extrabold text-slate-900">{dynamicHealth.sleep.bedTime}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Wake Time</p>
+                <p className="mt-1 text-lg font-extrabold text-slate-900">{dynamicHealth.sleep.wakeTime}</p>
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold text-slate-600 uppercase tracking-widest">7-Day Quality Trend</p>
+              <MiniBars data={dynamicHealth.sleep.history} max={100} colorClass="bg-indigo-500" />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {activeModal === "stress" && (
+        <Modal title="Stress & HRV" onClose={() => setActiveModal(null)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-rose-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500">Level</p>
+                <p className="mt-1 text-2xl font-extrabold text-rose-900">{dynamicHealth.stress.level}</p>
+              </div>
+              <div className="rounded-2xl bg-rose-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500">HRV</p>
+                <p className="mt-1 text-2xl font-extrabold text-rose-900">{dynamicHealth.stress.hrvMs} ms</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Score</p>
+                <p className="mt-1 text-lg font-extrabold text-slate-900">{dynamicHealth.stress.score}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Mood</p>
+                <p className="mt-1 text-lg font-extrabold text-slate-900">{dynamicHealth.stress.expression}</p>
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold text-slate-600 uppercase tracking-widest">7-Day Stress Trend</p>
+              <MiniBars data={dynamicHealth.stress.trend} max={70} colorClass="bg-rose-500" />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {activeModal === "pai" && (
+        <Modal title="PAI Score" onClose={() => setActiveModal(null)}>
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-emerald-50 p-5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Current Score</p>
+              <p className="mt-1 text-5xl font-extrabold text-emerald-900">{dynamicHealth.pai.score}</p>
+              <p className="mt-1 text-sm font-semibold text-emerald-600">{dynamicHealth.pai.range} range</p>
+              <div className="mt-4">
+                <div className="mb-2 flex justify-between text-xs font-bold text-emerald-700">
+                  <span>Weekly progress</span>
+                  <span>{Math.round(paiProgress)}%</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-emerald-200">
+                  <div className="h-3 rounded-full bg-emerald-500 transition-all" style={{ width: `${paiProgress}%` }} />
+                </div>
+                <p className="mt-1 text-xs text-emerald-500">Target: {dynamicHealth.pai.weeklyTarget}</p>
+              </div>
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-bold text-slate-600 uppercase tracking-widest">7-Day PAI History</p>
+              <MiniBars data={dynamicHealth.pai.history} max={100} colorClass="bg-emerald-500" />
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {activeModal === "calories" && (
+        <Modal title="Calorie & Activity" onClose={() => setActiveModal(null)}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-amber-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Intake</p>
+                <p className="mt-1 text-2xl font-extrabold text-amber-900">{formatNumber.format(dynamicHealth.calories.intake)}</p>
+                <p className="text-xs text-amber-600">kcal</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Output</p>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900">{formatNumber.format(dynamicHealth.calories.output)}</p>
+                <p className="text-xs text-slate-400">kcal</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Steps</p>
+                <p className="mt-1 text-xl font-extrabold text-slate-900">{formatNumber.format(dynamicHealth.calories.steps)}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Avg HR</p>
+                <p className="mt-1 text-xl font-extrabold text-slate-900">{dynamicHealth.calories.averageHeartRate} <span className="text-sm font-semibold text-slate-400">bpm</span></p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-100 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Last Meal Estimate</p>
+              <p className="text-sm font-semibold text-slate-700">{dynamicHealth.calories.mealEstimate}</p>
+              <p className="mt-1 text-xl font-extrabold text-amber-800">{formatNumber.format(dynamicHealth.calories.lastMealKcal)} kcal</p>
+            </div>
+            <div className={`rounded-2xl border p-4 ${calorieBalance < 0 ? "border-emerald-100 bg-emerald-50" : "border-amber-100 bg-amber-50"}`}>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${calorieBalance < 0 ? "text-emerald-500" : "text-amber-500"}`}>Net Balance</p>
+              <p className={`mt-1 text-2xl font-extrabold ${calorieBalance < 0 ? "text-emerald-900" : "text-amber-900"}`}>
+                {calorieBalance > 0 ? "+" : ""}{formatNumber.format(calorieBalance)} kcal
+              </p>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {activeModal === "environment" && (
+        <Modal title="Environment Details" onClose={() => setActiveModal(null)}>
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+              <MapPin className="h-3.5 w-3.5 text-teal-600" />
+              {environment.location}
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">
+                {isLoadingEnvironment ? "Loading live data…" : environment.source}
+              </span>
+            </div>
+            {environmentError && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">{environmentError}</div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className={`rounded-2xl border p-4 ${getPmBg(environment.pm25)}`}>
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  <Wind className="h-4 w-4" /> PM 2.5
+                </div>
+                <p className="text-2xl font-extrabold text-slate-950">{environment.pm25}</p>
+                <p className={`text-xs font-bold ${getPmTone(environment.pm25)}`}>{getPmLabel(environment.pm25)}</p>
+              </div>
+              <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  <Sun className="h-4 w-4" /> UV Index
+                </div>
+                <p className="text-2xl font-extrabold text-slate-950">{environment.uv}</p>
+                <p className="text-xs font-bold text-amber-600">{getUvLabel(environment.uv)}</p>
+              </div>
+              <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  <Thermometer className="h-4 w-4" /> Temp
+                </div>
+                <p className="text-2xl font-extrabold text-slate-950">{environment.temperature}°C</p>
+                <p className="text-xs font-semibold text-slate-500">{environment.condition}</p>
+              </div>
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                  <AirVent className="h-4 w-4" /> Humidity
+                </div>
+                <p className="text-2xl font-extrabold text-slate-950">{environment.humidity}%</p>
+                <p className="text-xs font-semibold text-blue-600">Hydrate often</p>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">Today&apos;s Forecast</p>
+              <div className="divide-y divide-slate-100 rounded-2xl border border-slate-100 overflow-hidden">
+                {environment.forecast.map((item) => (
+                  <div key={item.time} className="flex items-center justify-between px-4 py-3">
+                    <span className="text-xs font-bold text-slate-500">{item.time}</span>
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                      <CloudSun className="h-3.5 w-3.5 text-teal-600" />
+                      {item.condition}
+                    </span>
+                    <span className="text-sm font-extrabold text-slate-950">{item.temp}°C</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </main>
   );
 }
