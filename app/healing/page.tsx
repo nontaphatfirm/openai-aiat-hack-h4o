@@ -13,7 +13,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 const PASSPORT_STORAGE_KEY = "wellness_passport_data";
 const HEALING_STORAGE_KEY = "wellness_healing_feedback";
@@ -71,6 +71,27 @@ type FeedbackEntry = {
   symptom: string;
   note: string;
   createdAt: string;
+};
+
+type HealingPlan = {
+  title: string;
+  subtitle: string;
+  riskSignals: string[];
+  services: { name: string; detail: string }[];
+  dailyActions: string[];
+};
+
+type HealingAdvice = {
+  tone: "urgent" | "watch" | "steady";
+  title: string;
+  detail: string;
+};
+
+type HealingApiResponse = {
+  plan: HealingPlan;
+  advice: HealingAdvice;
+  source: "openai" | "fallback";
+  warning?: string;
 };
 
 const defaultPassport: HealingPassport = {
@@ -137,7 +158,7 @@ function readStoredFeedback() {
   }
 }
 
-function createPlan(passport: HealingPassport, type: HealingType) {
+function createFallbackPlan(passport: HealingPassport, type: HealingType): HealingPlan {
   const sleepHours = passport.dynamicHealth.sleep.durationHours;
   const sleepQuality = passport.dynamicHealth.sleep.quality;
   const stressScore = passport.dynamicHealth.stress.score;
@@ -182,7 +203,7 @@ function createPlan(passport: HealingPassport, type: HealingType) {
   };
 }
 
-function getAdvice(feedback: FeedbackEntry[], activeType: HealingType) {
+function createFallbackAdvice(feedback: FeedbackEntry[], activeType: HealingType): HealingAdvice {
   const entries = feedback.filter((item) => item.type === activeType);
   const latest = entries.slice(-3);
   const hasLongNoImprovement = entries.length >= 5 && latest.every((item) => item.rating <= 2);
@@ -221,13 +242,62 @@ export default function HealingPage() {
   const [rating, setRating] = useState(3);
   const [symptom, setSymptom] = useState(symptomOptions.physical[0]);
   const [note, setNote] = useState("");
+  const [apiResult, setApiResult] = useState<HealingApiResponse>(() => ({
+    plan: createFallbackPlan(readStoredPassport(), "physical"),
+    advice: createFallbackAdvice(readStoredFeedback(), "physical"),
+    source: "fallback",
+  }));
+  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem(HEALING_STORAGE_KEY, JSON.stringify(feedback));
   }, [feedback]);
 
-  const plan = useMemo(() => createPlan(passport, activeType), [passport, activeType]);
-  const advice = useMemo(() => getAdvice(feedback, activeType), [feedback, activeType]);
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadHealingPlan() {
+      setIsLoadingPlan(true);
+      setApiError(null);
+
+      try {
+        const response = await fetch("/api/healing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ passport, activeType, feedback }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error("Unable to load healing plan from API.");
+        }
+
+        const data = (await response.json()) as HealingApiResponse;
+        setApiResult(data);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setApiError(error instanceof Error ? error.message : "Unable to load healing plan from API.");
+        setApiResult({
+          plan: createFallbackPlan(passport, activeType),
+          advice: createFallbackAdvice(feedback, activeType),
+          source: "fallback",
+          warning: "The local fallback plan is being shown because the API request failed.",
+        });
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingPlan(false);
+        }
+      }
+    }
+
+    loadHealingPlan();
+
+    return () => controller.abort();
+  }, [activeType, feedback, passport]);
+
+  const plan = apiResult.plan;
+  const advice = apiResult.advice;
   const typeFeedback = feedback.filter((item) => item.type === activeType);
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -258,6 +328,16 @@ export default function HealingPage() {
         <p className="mt-3 text-sm leading-6 text-teal-50/90">
           Service plans are generated from the Passport profile, daily health signals, and symptom feedback.
         </p>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-black">
+          <span className="rounded-full bg-white/15 px-3 py-1">
+            {isLoadingPlan ? "Loading API plan" : apiResult.source === "openai" ? "OpenAI API" : "Fallback plan"}
+          </span>
+          {(apiError || apiResult.warning) && (
+            <span className="rounded-full bg-amber-300/20 px-3 py-1 text-amber-50">
+              {apiError ?? apiResult.warning}
+            </span>
+          )}
+        </div>
       </section>
 
       <section className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
