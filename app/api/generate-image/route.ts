@@ -17,6 +17,15 @@ function getPrompt(body: GenerateImageRequest) {
   return typeof body.prompt === "string" ? body.prompt.trim() : "";
 }
 
+async function imageUrlToDataUrl(imageUrl: string) {
+  const response = await fetch(imageUrl);
+  if (!response.ok) return imageUrl;
+
+  const contentType = response.headers.get("content-type") ?? "image/png";
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return `data:${contentType};base64,${buffer.toString("base64")}`;
+}
+
 export async function POST(request: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -56,7 +65,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "OpenAI did not return an image URL." }, { status: 502 });
     }
 
-    return NextResponse.json({ imageUrl });
+    return NextResponse.json({ imageUrl: await imageUrlToDataUrl(imageUrl) });
   } catch {
     return NextResponse.json({ error: "Unable to generate image." }, { status: 500 });
   }

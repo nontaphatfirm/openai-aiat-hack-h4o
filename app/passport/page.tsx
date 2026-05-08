@@ -1099,7 +1099,7 @@ export default function PassportPage() {
                 Ready to sync with wearable APIs, environment, and chat history.
               </span>
               <Link
-                href="/diet"
+                href="/diet?generate=1"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-teal-800"
               >
                 Generate Diet Plan

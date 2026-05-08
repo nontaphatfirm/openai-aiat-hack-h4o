@@ -418,7 +418,7 @@ function sanitizeMenus(menus: MenuRecommendation[], allergies: string[], conditi
       keyIngredientForResearch: menu.keyIngredientForResearch,
     });
 
-    if (safeMenus.length === 10) break;
+    if (safeMenus.length === 5) break;
   }
 
   return safeMenus;
@@ -497,8 +497,8 @@ async function generateMenus(profileSummary: ReturnType<typeof getProfileSummary
     properties: {
       menus: {
         type: "array",
-        minItems: 10,
-        maxItems: 10,
+        minItems: 5,
+        maxItems: 5,
         items: {
           type: "object",
           additionalProperties: false,
@@ -540,11 +540,11 @@ async function generateMenus(profileSummary: ReturnType<typeof getProfileSummary
       {
         role: "system",
         content:
-          "You are a personalized nutrition consultant for a Thai food-as-medicine demo. Return only valid JSON that matches the schema. Write all user-facing text in English. Make 10 realistic meals using local ingredients when possible. Safety is critical: never include any ingredient related to the user's allergies. Adapt meals for underlying conditions such as diabetes, kidney disease, hypertension, gout, asthma, pregnancy, or medication interactions. Keep explanations concise and non-diagnostic. For ingredientPool, return validated ingredient objects with a short user-specific reason and a scientific, botanical, or clear English researchKeyword suitable for Semantic Scholar search.",
+          "You are a personalized nutrition consultant for a Thai food-as-medicine demo. Return only valid JSON that matches the schema. Write all user-facing text in English. Make 5 realistic meals using local ingredients when possible. Safety is critical: never include any ingredient related to the user's allergies. Adapt meals for underlying conditions such as diabetes, kidney disease, hypertension, gout, asthma, pregnancy, or medication interactions. Keep explanations concise and non-diagnostic. For ingredientPool, return validated ingredient objects with a short user-specific reason and a scientific, botanical, or clear English researchKeyword suitable for Semantic Scholar search.",
       },
       {
         role: "user",
-        content: `Create 10 personalized menu recommendations and 8-12 validated ingredients for this profile. Profile JSON: ${JSON.stringify(profileSummary)}. Include one English botanical, herb, or main ingredient name in keyIngredientForResearch for each menu, and use scientific or English names in ingredientPool.researchKeyword for Semantic Scholar lookup.`,
+        content: `Create 5 personalized menu recommendations and 8-12 validated ingredients for this profile. Profile JSON: ${JSON.stringify(profileSummary)}. Include one English botanical, herb, or main ingredient name in keyIngredientForResearch for each menu, and use scientific or English names in ingredientPool.researchKeyword for Semantic Scholar lookup.`,
       },
     ],
     text: {

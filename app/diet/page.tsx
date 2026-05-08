@@ -9,11 +9,11 @@ import {
   ExternalLink,
   Leaf,
   Loader2,
-  RotateCcw,
   ShieldCheck,
   Sparkles,
   Utensils,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -105,6 +105,8 @@ type ApiErrorResponse = {
 
 const PRIMARY_STORAGE_KEY = "mock_passport_data";
 const LEGACY_STORAGE_KEY = "wellness_passport_data";
+const RECOMMENDATIONS_STORAGE_KEY = "diet_recommendations";
+const MENU_LIMIT = 5;
 const ENGLISH_DISCLAIMER =
   "This system provides preliminary wellness suggestions only and does not replace medical diagnosis or advice from a physician, dietitian, or pharmacist.";
 
@@ -138,6 +140,37 @@ function readPassportData() {
   } catch {
     return null;
   }
+}
+
+function readStoredRecommendations() {
+  if (typeof window === "undefined") return null;
+
+  const storedValue = window.localStorage.getItem(RECOMMENDATIONS_STORAGE_KEY);
+  if (!storedValue) return null;
+
+  try {
+    const parsed = JSON.parse(storedValue) as RecommendationResponse;
+    if (!Array.isArray(parsed.menus)) return null;
+
+    return {
+      ...parsed,
+      menus: parsed.menus.slice(0, MENU_LIMIT),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredRecommendations(recommendations: RecommendationResponse) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    RECOMMENDATIONS_STORAGE_KEY,
+    JSON.stringify({
+      ...recommendations,
+      menus: recommendations.menus.slice(0, MENU_LIMIT),
+    }),
+  );
 }
 
 function formatCalories(value: number) {
@@ -344,6 +377,33 @@ function MenuCard({ menu }: { menu: MenuRecommendation }) {
   );
 }
 
+function EmptyMenuCard({ index }: { index: number }) {
+  return (
+    <article className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-5 flex h-36 items-center justify-center rounded-xl bg-slate-50">
+        <Utensils className="h-8 w-8 text-slate-200" />
+      </div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="h-4 w-24 rounded-full bg-slate-100" />
+          <div className="h-6 w-44 rounded-full bg-slate-100" />
+        </div>
+        <div className="h-7 w-20 rounded-full bg-slate-100" />
+      </div>
+      <div className="mt-5 space-y-2" aria-label={`Empty menu slot ${index}`}>
+        <div className="h-3 w-full rounded-full bg-slate-50" />
+        <div className="h-3 w-4/5 rounded-full bg-slate-50" />
+        <div className="h-3 w-2/3 rounded-full bg-slate-50" />
+      </div>
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <div className="h-10 rounded-xl bg-slate-50" />
+        <div className="h-10 rounded-xl bg-slate-50" />
+        <div className="h-10 rounded-xl bg-slate-50" />
+      </div>
+    </article>
+  );
+}
+
 export default function DietPage() {
   const router = useRouter();
   const [passportData, setPassportData] = useState<PassportData | null>(null);
@@ -364,7 +424,9 @@ export default function DietPage() {
         body: JSON.stringify(data),
       });
       const payload = await readJsonResponse<RecommendationResponse>(response);
-      setRecommendations(payload);
+      const limitedPayload = { ...payload, menus: payload.menus.slice(0, MENU_LIMIT) };
+      setRecommendations(limitedPayload);
+      writeStoredRecommendations(limitedPayload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load recommendations.");
     } finally {
@@ -383,7 +445,20 @@ export default function DietPage() {
       }
 
       setPassportData(storedPassportData);
-      void loadRecommendations(storedPassportData);
+      const storedRecommendations = readStoredRecommendations();
+      if (storedRecommendations) {
+        setRecommendations(storedRecommendations);
+      }
+
+      const shouldGenerate = new URLSearchParams(window.location.search).get("generate") === "1";
+      if (shouldGenerate) {
+        void loadRecommendations(storedPassportData).then(() => {
+          window.history.replaceState(null, "", "/diet");
+        });
+        return;
+      }
+
+      setIsLoading(false);
     }, 0);
 
     return () => window.clearTimeout(hydrationTimer);
@@ -393,6 +468,7 @@ export default function DietPage() {
   const environment = passportData?.environment;
   const ingredientPool =
     recommendations?.ingredientPool?.length ? recommendations.ingredientPool : recommendations ? getIngredientPool(recommendations.menus) : [];
+  const menus = recommendations?.menus.slice(0, MENU_LIMIT) ?? [];
 
   return (
     <main className="min-h-full bg-slate-50 px-4 pb-8 pt-5">
@@ -460,7 +536,7 @@ export default function DietPage() {
       <section className="mt-6">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Top 10</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-teal-700">Top 5</p>
             <h2 className="text-2xl font-extrabold text-slate-950">Recommended Menus</h2>
           </div>
           {isLoading ? (
@@ -473,14 +549,12 @@ export default function DietPage() {
         {error ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
             <p className="text-sm font-bold leading-6 text-rose-800">{error}</p>
-            <button
-              type="button"
-              onClick={() => passportData && void loadRecommendations(passportData)}
+            <Link
+              href="/passport"
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-rose-700 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-rose-800"
             >
-              <RotateCcw className="h-4 w-4" />
-              Retry
-            </button>
+              Back to Passport
+            </Link>
           </div>
         ) : null}
 
@@ -492,10 +566,18 @@ export default function DietPage() {
           </div>
         ) : null}
 
-        {!isLoading && recommendations?.menus.length ? (
+        {!isLoading && menus.length ? (
           <div className="space-y-4">
-            {recommendations.menus.map((menu) => (
+            {menus.map((menu) => (
               <MenuCard key={`${menu.name}-${menu.keyIngredientForResearch}`} menu={menu} />
+            ))}
+          </div>
+        ) : null}
+
+        {!isLoading && !menus.length ? (
+          <div className="space-y-4">
+            {Array.from({ length: MENU_LIMIT }, (_, index) => (
+              <EmptyMenuCard key={index} index={index + 1} />
             ))}
           </div>
         ) : null}

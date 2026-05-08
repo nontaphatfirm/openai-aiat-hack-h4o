@@ -17,6 +17,58 @@ type GenerateImageResponse = {
   error?: string;
 };
 
+const GENERATED_IMAGE_CACHE_KEY = "generated_food_images";
+const MAX_CACHED_GENERATED_IMAGES = 24;
+
+function getPromptCacheKey(prompt: string) {
+  return prompt.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function readGeneratedImageCache() {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const storedValue = window.localStorage.getItem(GENERATED_IMAGE_CACHE_KEY);
+    if (!storedValue) return {};
+
+    const parsed = JSON.parse(storedValue) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readCachedGeneratedImage(prompt: string) {
+  const cacheKey = getPromptCacheKey(prompt);
+  if (!cacheKey) return "";
+
+  const cachedImage = readGeneratedImageCache()[cacheKey];
+  return typeof cachedImage === "string" ? cachedImage : "";
+}
+
+function writeCachedGeneratedImage(prompt: string, imageUrl: string) {
+  if (typeof window === "undefined" || !imageUrl.startsWith("data:image/")) return;
+
+  const cacheKey = getPromptCacheKey(prompt);
+  if (!cacheKey) return;
+
+  try {
+    const cache = readGeneratedImageCache();
+    let entries = Object.entries({ ...cache, [cacheKey]: imageUrl }).slice(-MAX_CACHED_GENERATED_IMAGES);
+
+    while (entries.length) {
+      try {
+        window.localStorage.setItem(GENERATED_IMAGE_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+        return;
+      } catch {
+        entries = entries.slice(1);
+      }
+    }
+  } catch {
+    // Keep showing the generated image even when browser storage is full.
+  }
+}
+
 async function requestGeneratedImage(prompt: string) {
   const response = await fetch("/api/generate-image", {
     method: "POST",
@@ -41,14 +93,27 @@ export function SelfHealingFoodImage({ src, prompt, alt, className = "" }: SelfH
   const [hasFailedAi, setHasFailedAi] = useState(false);
 
   useEffect(() => {
-    if (imageUrl || hasTriedAi) return;
+    async function syncImage() {
+      if (src) {
+        if (imageUrl !== src) setImageUrl(src);
+        return;
+      }
 
-    async function generateMissingImage() {
+      if (imageUrl || hasTriedAi) return;
+
+      const cachedImage = readCachedGeneratedImage(prompt);
+      if (cachedImage) {
+        setImageUrl(cachedImage);
+        return;
+      }
+
       setIsGenerating(true);
       setHasTriedAi(true);
 
       try {
-        setImageUrl(await requestGeneratedImage(prompt));
+        const generatedImageUrl = await requestGeneratedImage(prompt);
+        writeCachedGeneratedImage(prompt, generatedImageUrl);
+        setImageUrl(generatedImageUrl);
       } catch {
         setHasFailedAi(true);
         setImageUrl("/placeholder-food.jpg");
@@ -57,8 +122,8 @@ export function SelfHealingFoodImage({ src, prompt, alt, className = "" }: SelfH
       }
     }
 
-    void generateMissingImage();
-  }, [hasTriedAi, imageUrl, prompt]);
+    void syncImage();
+  }, [hasTriedAi, imageUrl, prompt, src]);
 
   async function handleImageError() {
     if (hasTriedAi) {
@@ -72,7 +137,9 @@ export function SelfHealingFoodImage({ src, prompt, alt, className = "" }: SelfH
     setHasTriedAi(true);
 
     try {
-      setImageUrl(await requestGeneratedImage(prompt));
+      const generatedImageUrl = await requestGeneratedImage(prompt);
+      writeCachedGeneratedImage(prompt, generatedImageUrl);
+      setImageUrl(generatedImageUrl);
     } catch {
       setHasFailedAi(true);
       setImageUrl("/placeholder-food.jpg");
