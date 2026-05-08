@@ -11,6 +11,10 @@ type AnalyzeFoodJsonBody = {
 type FoodAnalysis = {
   foodName: string;
   estimatedCalories: number;
+  carbsG: number;
+  proteinG: number;
+  fatG: number;
+  sodiumMg: number;
 };
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
@@ -63,6 +67,10 @@ function sanitizeFoodAnalysis(value: FoodAnalysis): FoodAnalysis {
   return {
     foodName: value.foodName.trim() || "Unknown food",
     estimatedCalories: Math.max(0, Math.round(value.estimatedCalories)),
+    carbsG: Math.max(0, Math.round(Number(value.carbsG) || 0)),
+    proteinG: Math.max(0, Math.round(Number(value.proteinG) || 0)),
+    fatG: Math.max(0, Math.round(Number(value.fatG) || 0)),
+    sodiumMg: Math.max(0, Math.round(Number(value.sodiumMg) || 0)),
   };
 }
 
@@ -79,7 +87,7 @@ export async function POST(request: Request) {
           content: [
             {
               type: "input_text",
-              text: "Analyze this food image. Return ONLY a valid JSON object with 'foodName' (string) and 'estimatedCalories' (number).",
+              text: "Analyze this food image. Estimate the dish and its nutritional content per visible serving. Return ONLY a valid JSON object with 'foodName' (string), 'estimatedCalories' (number), 'carbsG' (number, carbohydrates in grams), 'proteinG' (number, protein in grams), 'fatG' (number, fat in grams), 'sodiumMg' (number, sodium in milligrams). These are rough visual estimates.",
             },
             {
               type: "input_image",
@@ -99,8 +107,12 @@ export async function POST(request: Request) {
             properties: {
               foodName: { type: "string" },
               estimatedCalories: { type: "number" },
+              carbsG: { type: "number" },
+              proteinG: { type: "number" },
+              fatG: { type: "number" },
+              sodiumMg: { type: "number" },
             },
-            required: ["foodName", "estimatedCalories"],
+            required: ["foodName", "estimatedCalories", "carbsG", "proteinG", "fatG", "sodiumMg"],
           },
         },
       },
