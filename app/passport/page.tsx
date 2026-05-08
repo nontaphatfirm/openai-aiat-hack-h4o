@@ -5,7 +5,6 @@ import {
   AirVent,
   Calendar,
   Camera,
-  Check,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -89,6 +88,13 @@ type Environment = {
   forecast: { time: string; temp: number; condition: string }[];
 };
 
+type Interaction = {
+  goal: string;
+  diet: string;
+  feeling: string;
+  notes: string;
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "bot";
@@ -106,6 +112,7 @@ type PassportData = {
   profile: Profile;
   dynamicHealth: DynamicHealth;
   environment: Environment;
+  interaction: Interaction;
   chatSessions: ChatSession[];
   mealPhotoStatus: string;
   foodLog: FoodEntry[];
@@ -130,8 +137,13 @@ type ApiErrorResponse = {
   error: string;
 };
 
-type ExtractProfileResponse = {
-  profile: Profile;
+type FoodAnalysis = {
+  foodName: string;
+  estimatedCalories: number;
+  carbsG: number;
+  proteinG: number;
+  fatG: number;
+  sodiumMg: number;
 };
 
 type SpeechRecognitionResultListLike = {
@@ -241,6 +253,13 @@ const defaultProfile: Profile = {
   chronicConditions: "Mild asthma, seasonal allergies",
 };
 
+const defaultInteraction: Interaction = {
+  goal: "Improve sleep quality and reduce stress",
+  diet: "High-protein, low added sugar, no shellfish",
+  feeling: "A little tired after work, but mentally calmer than last week.",
+  notes: "Prefers quick meals and evening stretching routines.",
+};
+
 const defaultFoodLog: FoodEntry[] = [
   { id: "m-0201", name: "Oatmeal with banana", date: "2026-05-02", time: "08:00", calories: 320, carbs: 58, protein: 9, fat: 6, sodium: 85, source: "golden_spoon" },
   { id: "m-0202", name: "Chicken Caesar salad", date: "2026-05-02", time: "12:30", calories: 450, carbs: 20, protein: 38, fat: 22, sodium: 520, source: "photo" },
@@ -305,6 +324,42 @@ function calculateBmi(heightCm: number, weightKg: number) {
   return Number((weightKg / (heightM * heightM)).toFixed(1));
 }
 
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getActiveFoodLogDate(foodLog: FoodEntry[]) {
+  const today = getLocalDateKey();
+  if (foodLog.some((entry) => entry.date === today)) return today;
+
+  return [...foodLog]
+    .map((entry) => entry.date)
+    .filter(Boolean)
+    .sort((a, b) => b.localeCompare(a))[0] ?? today;
+}
+
+function calculateFoodLogCalories(foodLog: FoodEntry[], date = getActiveFoodLogDate(foodLog)) {
+  return foodLog
+    .filter((entry) => entry.date === date)
+    .reduce((sum, entry) => sum + entry.calories, 0);
+}
+
+function syncCalorieIntakeWithFoodLog(data: PassportData): PassportData {
+  return {
+    ...data,
+    dynamicHealth: {
+      ...data.dynamicHealth,
+      calories: {
+        ...data.dynamicHealth.calories,
+        intake: calculateFoodLogCalories(data.foodLog),
+      },
+    },
+  };
+}
+
 function getBmiStatus(bmi: number) {
   if (!bmi) return "Needs data";
   if (bmi < 18.5) return "Underweight";
@@ -363,7 +418,7 @@ function createFallbackEnvironment(): Environment {
 }
 
 function createInitialPassportData(): PassportData {
-  return {
+  return syncCalorieIntakeWithFoodLog({
     profile: { ...defaultProfile },
     dynamicHealth: {
       ...defaultDynamicHealth,
@@ -373,10 +428,11 @@ function createInitialPassportData(): PassportData {
       calories: { ...defaultDynamicHealth.calories },
     },
     environment: { ...defaultEnvironment, forecast: [...defaultEnvironment.forecast] },
+    interaction: { ...defaultInteraction },
     chatSessions: defaultChatSessions.map((s) => ({ ...s, messages: [...s.messages] })),
     mealPhotoStatus: "Ready for meal photo analysis",
     foodLog: [...defaultFoodLog],
-  };
+  });
 }
 
 function mergeStoredPassportData(storedData: Partial<PassportData> & { chatMessages?: ChatMessage[] }): PassportData {
@@ -391,7 +447,7 @@ function mergeStoredPassportData(storedData: Partial<PassportData> & { chatMessa
       { id: "session-today", title: "Today's check-in", createdAt: "2026-05-08", messages: storedData.chatMessages },
     ];
   }
-  return {
+  return syncCalorieIntakeWithFoodLog({
     ...initialData,
     ...storedData,
     profile: {
@@ -427,10 +483,11 @@ function mergeStoredPassportData(storedData: Partial<PassportData> & { chatMessa
       ...storedData.environment,
       forecast: storedData.environment?.forecast ?? initialData.environment.forecast,
     },
+    interaction: { ...initialData.interaction, ...storedData.interaction },
     chatSessions,
     mealPhotoStatus: storedData.mealPhotoStatus ?? initialData.mealPhotoStatus,
     foodLog: storedData.foodLog ?? initialData.foodLog,
-  };
+  });
 }
 
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
@@ -592,6 +649,9 @@ export default function PassportPage() {
   const [activeModal, setActiveModal] = useState<"sleep" | "stress" | "pai" | "calories" | "environment" | "food-history" | null>(null);
   const [goldenSpoonPhoto, setGoldenSpoonPhoto] = useState<string | null>(null);
   const [goldenSpoonFoodName, setGoldenSpoonFoodName] = useState("");
+  const [goldenSpoonAnalysis, setGoldenSpoonAnalysis] = useState<FoodAnalysis | null>(null);
+  const [isGoldenSpoonAnalyzing, setIsGoldenSpoonAnalyzing] = useState(false);
+  const [goldenSpoonError, setGoldenSpoonError] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatVoiceActive, setIsChatVoiceActive] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string>("session-today");
@@ -621,7 +681,7 @@ export default function PassportPage() {
 
   useEffect(() => {
     if (!hasHydrated || typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(passportData));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(syncCalorieIntakeWithFoodLog(passportData)));
   }, [hasHydrated, passportData]);
 
   useEffect(() => {
@@ -672,7 +732,9 @@ export default function PassportPage() {
   const { dynamicHealth, environment, profile } = passportData;
   const visibleProfile = isEditingProfile ? profileDraft : profile;
   const environmentLocation = environment.locationName ?? environment.location;
-  const calorieBalance = dynamicHealth.calories.intake - dynamicHealth.calories.output;
+  const activeFoodLogDate = getActiveFoodLogDate(passportData.foodLog);
+  const effectiveCalorieIntake = calculateFoodLogCalories(passportData.foodLog, activeFoodLogDate);
+  const calorieBalance = effectiveCalorieIntake - dynamicHealth.calories.output;
   const paiProgress = Math.min(100, (dynamicHealth.pai.score / dynamicHealth.pai.weeklyTarget) * 100);
 
   const draftBmi = useMemo(
@@ -696,20 +758,19 @@ export default function PassportPage() {
     setIsEditingProfile(false);
   };
 
-
   const handleGoldenSpoonStart = () => {
-    if (!goldenSpoonPhoto || !goldenSpoonFoodName.trim()) return;
-    const name = goldenSpoonFoodName.trim();
-    const carbs = Math.round(20 + Math.random() * 60);
-    const protein = Math.round(8 + Math.random() * 37);
-    const fat = Math.round(5 + Math.random() * 30);
-    const sodium = Math.round(50 + Math.random() * 850);
-    const kcal = Math.round(carbs * 4 + protein * 4 + fat * 9);
+    if (!goldenSpoonPhoto || !goldenSpoonAnalysis) return;
+    const name = goldenSpoonAnalysis.foodName.trim() || "Unknown food";
+    const carbs = goldenSpoonAnalysis.carbsG;
+    const protein = goldenSpoonAnalysis.proteinG;
+    const fat = goldenSpoonAnalysis.fatG;
+    const sodium = goldenSpoonAnalysis.sodiumMg;
+    const kcal = goldenSpoonAnalysis.estimatedCalories;
     const now = new Date();
     const entry: FoodEntry = {
       id: `spoon-${Date.now()}`,
       name,
-      date: now.toISOString().slice(0, 10),
+      date: getLocalDateKey(now),
       time: now.toTimeString().slice(0, 5),
       calories: kcal,
       carbs,
@@ -720,20 +781,45 @@ export default function PassportPage() {
       photoDataUrl: goldenSpoonPhoto,
     };
     updatePassportData((c) => ({
-      ...c,
-      foodLog: [...c.foodLog, entry],
-      dynamicHealth: { ...c.dynamicHealth, calories: { ...c.dynamicHealth.calories, intake: c.dynamicHealth.calories.intake + kcal, mealEstimate: name, lastMealKcal: kcal } },
+      ...syncCalorieIntakeWithFoodLog({
+        ...c,
+        foodLog: [...c.foodLog, entry],
+        dynamicHealth: { ...c.dynamicHealth, calories: { ...c.dynamicHealth.calories, mealEstimate: name, lastMealKcal: kcal } },
+      }),
       mealPhotoStatus: `Golden Spoon: ${name}, ${kcal} kcal logged`,
     }));
     setGoldenSpoonPhoto(null);
     setGoldenSpoonFoodName("");
+    setGoldenSpoonAnalysis(null);
+    setGoldenSpoonError(null);
   };
 
   const handleGoldenSpoonPhotoChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !file.type.startsWith("image/")) return;
-    void readFileAsDataUrl(file).then((dataUrl) => setGoldenSpoonPhoto(dataUrl));
+    setGoldenSpoonAnalysis(null);
+    setGoldenSpoonFoodName("");
+    setGoldenSpoonError(null);
+    setIsGoldenSpoonAnalyzing(true);
+
+    void readFileAsDataUrl(file)
+      .then(async (dataUrl) => {
+        setGoldenSpoonPhoto(dataUrl);
+        const analysis = await readJsonResponse<FoodAnalysis>(
+          await fetch("/api/analyze-food", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageDataUrl: dataUrl }),
+          }),
+        );
+        setGoldenSpoonAnalysis(analysis);
+        setGoldenSpoonFoodName(analysis.foodName);
+      })
+      .catch((error) => {
+        setGoldenSpoonError(error instanceof Error ? error.message : "Unable to identify this food.");
+      })
+      .finally(() => setIsGoldenSpoonAnalyzing(false));
   };
 
   const appendMessageToSession = (sessionId: string, msg: ChatMessage) => {
@@ -1101,26 +1187,44 @@ export default function PassportPage() {
                     <img src={goldenSpoonPhoto} alt="Food preview" className="h-40 w-full rounded-xl object-cover" />
                     <button
                       type="button"
-                      onClick={() => { setGoldenSpoonPhoto(null); setGoldenSpoonFoodName(""); }}
+                      onClick={() => {
+                        setGoldenSpoonPhoto(null);
+                        setGoldenSpoonFoodName("");
+                        setGoldenSpoonAnalysis(null);
+                        setGoldenSpoonError(null);
+                        setIsGoldenSpoonAnalyzing(false);
+                      }}
                       className="absolute right-2 top-2 rounded-full bg-black/50 p-1 text-white transition hover:bg-black/70"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <input
-                    value={goldenSpoonFoodName}
-                    onChange={(e) => setGoldenSpoonFoodName(e.target.value)}
-                    placeholder="Food name (required)"
-                    className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none transition focus:border-amber-400"
-                  />
+                  <div className="rounded-xl border border-amber-200 bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Detected food</p>
+                    {isGoldenSpoonAnalyzing ? (
+                      <span className="mt-1 flex items-center gap-2 text-sm font-bold text-slate-700">
+                        <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+                        Analyzing meal photo...
+                      </span>
+                    ) : goldenSpoonError ? (
+                      <p className="mt-1 text-sm font-bold text-rose-700">{goldenSpoonError}</p>
+                    ) : (
+                      <p className="mt-1 text-sm font-extrabold text-slate-900">{goldenSpoonFoodName || "Waiting for analysis"}</p>
+                    )}
+                    {goldenSpoonAnalysis && (
+                      <p className="mt-1 text-xs font-semibold text-slate-500">
+                        {formatNumber.format(goldenSpoonAnalysis.estimatedCalories)} kcal | C {goldenSpoonAnalysis.carbsG}g | P {goldenSpoonAnalysis.proteinG}g | F {goldenSpoonAnalysis.fatG}g
+                      </p>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleGoldenSpoonStart}
-                    disabled={!goldenSpoonFoodName.trim()}
+                    disabled={isGoldenSpoonAnalyzing || !goldenSpoonAnalysis}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:bg-amber-200"
                   >
-                    <Zap className="h-4 w-4" />
-                    Start
+                    {isGoldenSpoonAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                    Add to Food History
                   </button>
                 </div>
               )}
@@ -1129,7 +1233,7 @@ export default function PassportPage() {
             <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
               <div className="rounded-xl bg-slate-50 p-3 text-center">
                 <p className="font-semibold text-slate-400">Intake</p>
-                <p className="mt-1 text-base font-extrabold text-slate-950">{formatNumber.format(dynamicHealth.calories.intake)}</p>
+                <p className="mt-1 text-base font-extrabold text-slate-950">{formatNumber.format(effectiveCalorieIntake)}</p>
                 <p className="text-[10px] text-slate-400">kcal</p>
               </div>
               <div className="rounded-xl bg-slate-50 p-3 text-center">
@@ -1148,7 +1252,7 @@ export default function PassportPage() {
 
         {/* 5. Generate Diet Plan */}
         <section>
-          <div className="flex flex-col gap-2.5 rounded-2xl border border-teal-100 bg-teal-50 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 rounded-2xl border border-teal-100 bg-teal-50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-700">
                 <Sparkles className="h-5 w-5 text-white" />
@@ -1158,15 +1262,12 @@ export default function PassportPage() {
                 <h2 className="text-base font-extrabold text-teal-950">Generate Diet Plan</h2>
               </div>
             </div>
+
             <p className="text-xs leading-5 text-teal-700">
               Your passport data — health metrics, environment, and calorie intake — will be used to generate a personalised diet plan.
             </p>
-            <span className="flex items-center gap-2 text-xs font-semibold text-teal-800">
-              <Check className="h-3.5 w-3.5" />
-              Ready to sync with wearable APIs, environment, and chat history.
-            </span>
             <Link
-              href="/diet"
+              href="/diet?generate=1"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-teal-800"
             >
               Generate Diet Plan
@@ -1410,7 +1511,7 @@ export default function PassportPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-amber-50 p-4">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">Intake</p>
-                <p className="mt-1 text-2xl font-extrabold text-amber-900">{formatNumber.format(dynamicHealth.calories.intake)}</p>
+                <p className="mt-1 text-2xl font-extrabold text-amber-900">{formatNumber.format(effectiveCalorieIntake)}</p>
                 <p className="text-xs text-amber-600">kcal</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-4">
@@ -1459,7 +1560,7 @@ export default function PassportPage() {
                   const dayCarbs = entries.reduce((s, e) => s + e.carbs, 0);
                   const dayProtein = entries.reduce((s, e) => s + e.protein, 0);
                   const dayFat = entries.reduce((s, e) => s + e.fat, 0);
-                  const label = date === "2026-05-08" ? "Today" : date === "2026-05-07" ? "Yesterday" : date.slice(5).replace("-", "/");
+                  const label = date === activeFoodLogDate ? "Today" : date.slice(5).replace("-", "/");
                   return (
                     <div key={date}>
                       <div className="mb-3 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 p-3.5">
