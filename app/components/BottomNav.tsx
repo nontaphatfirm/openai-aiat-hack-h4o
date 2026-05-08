@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Compass, Heart, MessageSquare, Sparkles } from "lucide-react";
+import { Building2, Compass, Heart, Sparkles, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -9,7 +9,7 @@ const tabs = [
   { label: "Healing", href: "/healing", icon: Sparkles },
   { label: "Journey", href: "/journey", icon: Compass },
   { label: "Providers", href: "/providers", icon: Building2 },
-  { label: "Q&A", href: "/ask", icon: MessageSquare },
+  { label: "Community", href: "/community", icon: UsersRound },
 ];
 
 export default function BottomNav() {
