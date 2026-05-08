@@ -1,0 +1,14 @@
+{
+  "workspace": "D:\\AIAT\\Hax4OpenAI\\openai-aiat-hack-h4o\\tmp\\presentations\\omniwell-thai-pitch",
+  "pptx": "D:\\AIAT\\Hax4OpenAI\\openai-aiat-hack-h4o\\tmp\\presentations\\omniwell-thai-pitch\\output\\output.pptx",
+  "checks": {
+    "output_hygiene": {
+      "output_dir": "D:\\AIAT\\Hax4OpenAI\\openai-aiat-hack-h4o\\tmp\\presentations\\omniwell-thai-pitch\\output",
+      "unexpected_files": []
+    }
+  },
+  "failures": [
+    "PPTX package inspection failed: unzip -Z1 D:\\AIAT\\Hax4OpenAI\\openai-aiat-hack-h4o\\tmp\\presentations\\omniwell-thai-pitch\\output\\output.pptx failed"
+  ],
+  "warnings": []
+}

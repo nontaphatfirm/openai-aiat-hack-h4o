@@ -30,9 +30,11 @@ type ReverseGeocodeResponse = {
     city?: string;
     town?: string;
     municipality?: string;
+    county?: string;
     suburb?: string;
     city_district?: string;
     district?: string;
+    state_district?: string;
     state?: string;
     province?: string;
   };
@@ -57,10 +59,6 @@ function firstAddressPart(...parts: (string | undefined)[]) {
   return parts.find((part) => part?.trim())?.trim();
 }
 
-function buildFallbackLocationName(lat: number, lon: number) {
-  return `Current location (${lat.toFixed(3)}, ${lon.toFixed(3)})`;
-}
-
 function buildLocationName(reverseGeocode?: ReverseGeocodeResponse) {
   const address = reverseGeocode?.address;
   if (!address) return null;
@@ -72,13 +70,19 @@ function buildLocationName(reverseGeocode?: ReverseGeocodeResponse) {
     address.district,
     address.city_district,
     address.suburb,
+    address.county,
+    address.state_district,
   );
   const province = firstAddressPart(address.state, address.province);
-  const parts = [locality, province].filter(
-    (part, index, values): part is string => Boolean(part) && values.indexOf(part) === index,
-  );
 
-  return parts.length ? parts.join(", ") : null;
+  if (!locality || !province) return null;
+  if (locality === province) return province;
+
+  return `${locality}, ${province}`;
+}
+
+function isDemoMismatchLocationName(locationName: string) {
+  return /ayutthaya/i.test(locationName);
 }
 
 async function fetchReverseGeocode(url: URL) {
@@ -171,12 +175,16 @@ export async function GET(request: Request) {
 
     const weather = (await weatherResponse.json()) as WeatherResponse;
     const airQuality = (await airQualityResponse.json()) as AirQualityResponse;
-    const locationName = buildLocationName(reverseGeocode) ?? DEMO_DEFAULT_LOCATION_NAME;
+    const resolvedLocationName = buildLocationName(reverseGeocode);
+    const locationName =
+      resolvedLocationName && !isDemoMismatchLocationName(resolvedLocationName)
+        ? resolvedLocationName
+        : DEMO_DEFAULT_LOCATION_NAME;
     const current = weather.current ?? {};
     const forecast = buildForecast(weather.hourly);
 
     return NextResponse.json({
-      location: buildFallbackLocationName(lat, lon),
+      location: locationName,
       locationName,
       pm25: Math.round(airQuality.current?.pm2_5 ?? 0),
       uv: Number((current.uv_index ?? weather.hourly?.uv_index?.[0] ?? 0).toFixed(1)),

@@ -1,0 +1,30 @@
+# Role: World-Class Pitch Coach and Startup Strategist
+# Task: Create a high-impact 5-minute hackathon pitch script and deck outline for "OmniWell Thai"
+# Context: Post-AGI Era, focusing on hyper-personalized wellness for the Thai population.
+
+# Goal: 
+Develop a compelling, visionary, and technically grounded presentation that highlights the unique synergy between AGI software and proprietary hardware (Smart Spoon) while grounding it in the cultural context of Thai "Healing."
+
+# Input Project Details:
+- Project Name: OmniWell Thai
+- Core Selling Point 1: AGI-driven Personalized Nutrition. Inputs: Static profile (allergies, meds), Dynamic profile (sleep, stress, PAI), Environment (PM2.5, UV). Recommendations focus on local/accessible ingredients.
+- Core Selling Point 2: "Smart Spoon" Hardware. Features: NIR (Macro % tracking), Load cell (Weight measurement), EIS (Sodium ion detection), Haptic alerts.
+- Core Selling Point 3: Holistic Healing Ecosystem. Body: Thai massage, Acupuncture, Community fitness. Mind: Sound therapy, Guided meditation, Dharma listening. Healing Tourism integration.
+
+# Output Requirements & Constraints:
+1. Tone: Visionary, Authoritative, Urgent, yet Empathic.
+2. Format: A slide-by-slide breakdown (maximum 10-12 slides).
+3. Script: Detailed "Presenter Notes" for each slide, timed to fit exactly 5 minutes (approx. 130 words per minute).
+4. Structure:
+   - The Hook: The Post-AGI wellness paradox.
+   - The Hardware: Why software alone isn't enough (The Smart Spoon).
+   - The Engine: How AGI synthesizes chaotic data into meal-level precision.
+   - The Soul: Community and Healing (Thai cultural advantage).
+   - The Impact: Scalable wellness for 70 million Thais.
+   - The Ask: Hackathon conclusion.
+
+# Evaluation Criteria (Rationale):
+- Does it emphasize the "Hardware-Software-Community" triad?
+- Is the "Post-AGI" context integrated into the "Why Now" argument?
+- Is it localized specifically for the Thai market?
+

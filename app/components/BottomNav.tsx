@@ -1,15 +1,14 @@
 "use client";
 
-import { Building2, Compass, Heart, Sparkles, UsersRound } from "lucide-react";
+import { Heart, MessageSquare, Sparkles, Utensils } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
   { label: "Passport", href: "/passport", icon: Heart },
+  { label: "Diet", href: "/diet", icon: Utensils },
   { label: "Healing", href: "/healing", icon: Sparkles },
-  { label: "Journey", href: "/journey", icon: Compass },
-  { label: "Providers", href: "/providers", icon: Building2 },
-  { label: "Community", href: "/community", icon: UsersRound },
+  { label: "Ask", href: "/ask", icon: MessageSquare },
 ];
 
 export default function BottomNav() {
