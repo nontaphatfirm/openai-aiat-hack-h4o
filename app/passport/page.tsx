@@ -72,6 +72,7 @@ type DynamicHealth = {
 
 type Environment = {
   location: string;
+  locationName?: string;
   pm25: number;
   uv: number;
   temperature: number;
@@ -199,6 +200,7 @@ const defaultDynamicHealth: DynamicHealth = {
 
 const defaultEnvironment: Environment = {
   location: "Pathum Wan, Bangkok",
+  locationName: "Pathum Wan, Bangkok",
   pm25: 18,
   uv: 7,
   temperature: 32,
@@ -294,6 +296,7 @@ function createFallbackEnvironment(): Environment {
   return {
     ...defaultEnvironment,
     location: "Bangkok",
+    locationName: "Bangkok",
     pm25: 45,
     uv: 7,
     temperature: 33,
@@ -593,7 +596,7 @@ export default function PassportPage() {
         (error) => {
           applyFallbackEnvironment(error.message || "Location permission was denied.");
         },
-        { enableHighAccuracy: false, maximumAge: 300000, timeout: 7000 },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
       );
     }, 0);
 
@@ -605,6 +608,7 @@ export default function PassportPage() {
 
   const { dynamicHealth, environment, interaction, profile } = passportData;
   const visibleProfile = isEditingProfile ? profileDraft : profile;
+  const currentLocationName = environment.locationName ?? environment.location;
 
   const calorieBalance = dynamicHealth.calories.intake - dynamicHealth.calories.output;
   const paiProgress = Math.min(100, (dynamicHealth.pai.score / dynamicHealth.pai.weeklyTarget) * 100);
@@ -1163,7 +1167,7 @@ export default function PassportPage() {
 
               <div className="mb-5 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-600">
                 <MapPin className="h-4 w-4 text-teal-700" />
-                {environment.location}
+                <span className="text-slate-700">{currentLocationName}</span>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500">
                   {isLoadingEnvironment ? "Loading live data..." : environment.source}
                 </span>

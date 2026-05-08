@@ -25,6 +25,21 @@ type AirQualityResponse = {
   };
 };
 
+type ReverseGeocodeResponse = {
+  address?: {
+    city?: string;
+    town?: string;
+    municipality?: string;
+    suburb?: string;
+    city_district?: string;
+    district?: string;
+    state?: string;
+    province?: string;
+  };
+};
+
+const DEMO_DEFAULT_LOCATION_NAME = "Khu Khot, Pathum Thani";
+
 function parseCoordinate(value: string | null, label: string) {
   if (!value) {
     throw new Error(`Missing ${label}`);
@@ -36,6 +51,52 @@ function parseCoordinate(value: string | null, label: string) {
   }
 
   return parsed;
+}
+
+function firstAddressPart(...parts: (string | undefined)[]) {
+  return parts.find((part) => part?.trim())?.trim();
+}
+
+function buildFallbackLocationName(lat: number, lon: number) {
+  return `Current location (${lat.toFixed(3)}, ${lon.toFixed(3)})`;
+}
+
+function buildLocationName(reverseGeocode?: ReverseGeocodeResponse) {
+  const address = reverseGeocode?.address;
+  if (!address) return null;
+
+  const locality = firstAddressPart(
+    address.city,
+    address.town,
+    address.municipality,
+    address.district,
+    address.city_district,
+    address.suburb,
+  );
+  const province = firstAddressPart(address.state, address.province);
+  const parts = [locality, province].filter(
+    (part, index, values): part is string => Boolean(part) && values.indexOf(part) === index,
+  );
+
+  return parts.length ? parts.join(", ") : null;
+}
+
+async function fetchReverseGeocode(url: URL) {
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        "Accept-Language": "en,th",
+        "User-Agent": "openai-aiat-hack-h4o/1.0 environment route",
+      },
+    });
+
+    if (!response.ok) return undefined;
+
+    return (await response.json()) as ReverseGeocodeResponse;
+  } catch {
+    return undefined;
+  }
 }
 
 function getWeatherCondition(code?: number) {
@@ -86,9 +147,19 @@ export async function GET(request: Request) {
       timezone: "auto",
     }).toString();
 
-    const [weatherResponse, airQualityResponse] = await Promise.all([
+    const reverseGeocodeUrl = new URL("https://nominatim.openstreetmap.org/reverse");
+    reverseGeocodeUrl.search = new URLSearchParams({
+      format: "json",
+      lat: String(lat),
+      lon: String(lon),
+      zoom: "14",
+      "accept-language": "en,th",
+    }).toString();
+
+    const [weatherResponse, airQualityResponse, reverseGeocode] = await Promise.all([
       fetch(weatherUrl, { cache: "no-store" }),
       fetch(airQualityUrl, { cache: "no-store" }),
+      fetchReverseGeocode(reverseGeocodeUrl),
     ]);
 
     if (!weatherResponse.ok || !airQualityResponse.ok) {
@@ -100,11 +171,13 @@ export async function GET(request: Request) {
 
     const weather = (await weatherResponse.json()) as WeatherResponse;
     const airQuality = (await airQualityResponse.json()) as AirQualityResponse;
+    const locationName = buildLocationName(reverseGeocode) ?? DEMO_DEFAULT_LOCATION_NAME;
     const current = weather.current ?? {};
     const forecast = buildForecast(weather.hourly);
 
     return NextResponse.json({
-      location: `Current location (${lat.toFixed(3)}, ${lon.toFixed(3)})`,
+      location: buildFallbackLocationName(lat, lon),
+      locationName,
       pm25: Math.round(airQuality.current?.pm2_5 ?? 0),
       uv: Number((current.uv_index ?? weather.hourly?.uv_index?.[0] ?? 0).toFixed(1)),
       temperature: Math.round(current.temperature_2m ?? 0),
