@@ -29,7 +29,7 @@ export default function RootLayout({
             <div className="flex gap-2 overflow-x-auto px-3 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {[
                 ["Passport", "/passport"],
-                ["Journey", "/journey"],
+                ["Diet", "/diet"],
                 ["Providers", "/providers"],
                 ["Q&A", "/ask"],
               ].map(([label, href]) => (

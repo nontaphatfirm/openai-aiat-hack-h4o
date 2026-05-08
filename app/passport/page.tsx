@@ -1348,10 +1348,10 @@ export default function PassportPage() {
                 Ready to sync with user profile, wearable APIs, environment APIs, and chat history.
               </span>
               <Link
-                href="/journey"
+                href="/diet"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-teal-700 px-5 py-2 font-bold text-white transition hover:bg-teal-800"
               >
-                Generate Journey
+                Generate Diet Plan
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </div>

@@ -26,7 +26,7 @@ export default function FeedbackPage() {
     window.setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
-      window.setTimeout(() => router.push("/journey"), 1200);
+      window.setTimeout(() => router.push("/diet"), 1200);
     }, 700);
   };
 
